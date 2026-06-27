@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/WhichLlm.Core/WhichLlm.Core.vbproj" />
+    <Project Path="src/WhichLlm.Gui/WhichLlm.Gui.vbproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/WhichLlm.Tests/WhichLlm.Tests.vbproj" />
+  </Folder>
+</Solution>
