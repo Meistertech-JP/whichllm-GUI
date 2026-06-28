@@ -106,7 +106,9 @@ Namespace ViewModels
                 Dim normalized = If(String.Equals(value, AppText.English, StringComparison.OrdinalIgnoreCase), AppText.English, AppText.Japanese)
                 If SetProperty(_selectedLanguage, normalized) Then
                     AppText.CurrentLanguage = normalized
+                    AppText.SaveLanguage(normalized)
                     RefreshLocalizedChoiceLists()
+                    OnPropertyChanged(NameOf(SelectedLanguageOption))
                     RefreshRowsForLanguage()
                     OnPropertyChanged(NameOf(AppTitle))
                     OnPropertyChanged(NameOf(AppVersion))
@@ -115,6 +117,17 @@ Namespace ViewModels
                     StatusMessage = L("表示言語を変更しました", "Display language changed")
                     RaiseEvent LanguageChanged(Me, EventArgs.Empty)
                 End If
+            End Set
+        End Property
+
+        Public Property SelectedLanguageOption As ComboOption
+            Get
+                If LanguageOptions Is Nothing Then Return Nothing
+                Return LanguageOptions.FirstOrDefault(Function(optionItem) String.Equals(optionItem.Value, SelectedLanguage, StringComparison.OrdinalIgnoreCase))
+            End Get
+            Set(value As ComboOption)
+                If value Is Nothing Then Return
+                SelectedLanguage = value.Value
             End Set
         End Property
 
@@ -212,7 +225,19 @@ Namespace ViewModels
                 Return _selectedUseCase
             End Get
             Set(value As String)
-                SetProperty(_selectedUseCase, value)
+                If SetProperty(_selectedUseCase, NormalizeChoice(value, "general")) Then
+                    OnPropertyChanged(NameOf(SelectedUseCaseOption))
+                End If
+            End Set
+        End Property
+
+        Public Property SelectedUseCaseOption As ComboOption
+            Get
+                Return OptionFor(UseCases, SelectedUseCase)
+            End Get
+            Set(value As ComboOption)
+                If value Is Nothing Then Return
+                SelectedUseCase = value.Value
             End Set
         End Property
 
@@ -221,7 +246,19 @@ Namespace ViewModels
                 Return _selectedEvidence
             End Get
             Set(value As String)
-                SetProperty(_selectedEvidence, value)
+                If SetProperty(_selectedEvidence, NormalizeChoice(value, "base")) Then
+                    OnPropertyChanged(NameOf(SelectedEvidenceOption))
+                End If
+            End Set
+        End Property
+
+        Public Property SelectedEvidenceOption As ComboOption
+            Get
+                Return OptionFor(EvidenceModes, SelectedEvidence)
+            End Get
+            Set(value As ComboOption)
+                If value Is Nothing Then Return
+                SelectedEvidence = value.Value
             End Set
         End Property
 
@@ -230,7 +267,19 @@ Namespace ViewModels
                 Return _selectedFit
             End Get
             Set(value As String)
-                SetProperty(_selectedFit, value)
+                If SetProperty(_selectedFit, NormalizeChoice(value, "any")) Then
+                    OnPropertyChanged(NameOf(SelectedFitOption))
+                End If
+            End Set
+        End Property
+
+        Public Property SelectedFitOption As ComboOption
+            Get
+                Return OptionFor(FitModes, SelectedFit)
+            End Get
+            Set(value As ComboOption)
+                If value Is Nothing Then Return
+                SelectedFit = value.Value
             End Set
         End Property
 
@@ -239,7 +288,19 @@ Namespace ViewModels
                 Return _selectedSpeed
             End Get
             Set(value As String)
-                SetProperty(_selectedSpeed, value)
+                If SetProperty(_selectedSpeed, NormalizeChoice(value, "any")) Then
+                    OnPropertyChanged(NameOf(SelectedSpeedOption))
+                End If
+            End Set
+        End Property
+
+        Public Property SelectedSpeedOption As ComboOption
+            Get
+                Return OptionFor(SpeedModes, SelectedSpeed)
+            End Get
+            Set(value As ComboOption)
+                If value Is Nothing Then Return
+                SelectedSpeed = value.Value
             End Set
         End Property
 
@@ -537,12 +598,12 @@ Namespace ViewModels
                 .Top = ParseInteger(TopText, 10),
                 .ContextLength = InputParsers.ParseContextLength(ContextText, 4096),
                 .Quant = If(QuantText, "").Trim(),
-                .Speed = SelectedSpeed,
-                .Fit = SelectedFit,
+                .Speed = NormalizeChoice(SelectedSpeed, "any"),
+                .Fit = NormalizeChoice(SelectedFit, "any"),
                 .CpuOnly = CpuOnly,
-                .Profile = ProfileForUseCase(SelectedUseCase),
-                .UseCase = SelectedUseCase,
-                .Evidence = SelectedEvidence,
+                .Profile = ProfileForUseCase(NormalizeChoice(SelectedUseCase, "general")),
+                .UseCase = NormalizeChoice(SelectedUseCase, "general"),
+                .Evidence = NormalizeChoice(SelectedEvidence, "base"),
                 .Refresh = Refresh,
                 .VramHeadroom = If(String.IsNullOrWhiteSpace(VramHeadroomText), "auto", VramHeadroomText.Trim()),
                 .RamBudget = If(String.IsNullOrWhiteSpace(RamBudgetText), "available", RamBudgetText.Trim())
@@ -635,7 +696,7 @@ Namespace ViewModels
                 New ComboOption With {.Label = L("根拠なしも含める", "Include models without evidence"), .Value = "any"}
             })
             ReplaceOptions(FitModes, New List(Of ComboOption) From {
-                New ComboOption With {.Label = L("このPCで動けばOK", "Runnable on this PC"), .Value = "any"},
+                New ComboOption With {.Label = L("CPUのみも含める", "Include CPU-only too"), .Value = "any"},
                 New ComboOption With {.Label = L("GPUからあふれてもOK", "OK if it spills from GPU"), .Value = "gpu"},
                 New ComboOption With {.Label = L("GPUだけで快適（VRAM内）", "Fits entirely in GPU memory"), .Value = "full-gpu"}
             })
@@ -644,6 +705,14 @@ Namespace ViewModels
                 New ComboOption With {.Label = L("普段使い向け (10 tok/s以上)", "Everyday use (10+ tok/s)"), .Value = "usable"},
                 New ComboOption With {.Label = L("高速応答 (30 tok/s以上)", "Fast response (30+ tok/s)"), .Value = "fast"}
             })
+            OnPropertyChanged(NameOf(SelectedUseCase))
+            OnPropertyChanged(NameOf(SelectedEvidence))
+            OnPropertyChanged(NameOf(SelectedFit))
+            OnPropertyChanged(NameOf(SelectedSpeed))
+            OnPropertyChanged(NameOf(SelectedUseCaseOption))
+            OnPropertyChanged(NameOf(SelectedEvidenceOption))
+            OnPropertyChanged(NameOf(SelectedFitOption))
+            OnPropertyChanged(NameOf(SelectedSpeedOption))
         End Sub
 
         Private Shared Sub ReplaceOptions(target As ObservableCollection(Of ComboOption), values As IEnumerable(Of ComboOption))
@@ -653,6 +722,17 @@ Namespace ViewModels
                 target.Add(value)
             Next
         End Sub
+
+        Private Shared Function NormalizeChoice(value As String, fallback As String) As String
+            If String.IsNullOrWhiteSpace(value) Then Return fallback
+            Return value.Trim()
+        End Function
+
+        Private Shared Function OptionFor(options As IEnumerable(Of ComboOption), selectedValue As String) As ComboOption
+            If options Is Nothing Then Return Nothing
+            Dim normalized = NormalizeChoice(selectedValue, "")
+            Return options.FirstOrDefault(Function(optionItem) String.Equals(optionItem.Value, normalized, StringComparison.OrdinalIgnoreCase))
+        End Function
 
         Private Sub RefreshRowsForLanguage()
             If _lastRanking IsNot Nothing Then

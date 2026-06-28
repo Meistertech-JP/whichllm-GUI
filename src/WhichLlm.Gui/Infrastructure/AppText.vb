@@ -22,7 +22,44 @@ Namespace Infrastructure
             Dim fromEnvironment = Environment.GetEnvironmentVariable("WHICHLLM_GUI_LANG")
             If String.Equals(fromEnvironment, English, StringComparison.OrdinalIgnoreCase) Then Return English
             If String.Equals(fromEnvironment, Japanese, StringComparison.OrdinalIgnoreCase) Then Return Japanese
+            Dim fromSettings = LoadSavedLanguage()
+            If String.Equals(fromSettings, English, StringComparison.OrdinalIgnoreCase) Then Return English
+            If String.Equals(fromSettings, Japanese, StringComparison.OrdinalIgnoreCase) Then Return Japanese
             Return Japanese
+        End Function
+
+        Public Sub SaveLanguage(language As String)
+            Dim normalized = NormalizeLanguage(language)
+            Try
+                IO.Directory.CreateDirectory(SettingsDirectory())
+                IO.File.WriteAllText(LanguageFilePath(), normalized)
+            Catch
+                ' Language persistence is convenience only; UI switching must still work if the file is locked.
+            End Try
+        End Sub
+
+        Private Function LoadSavedLanguage() As String
+            Try
+                Dim path = LanguageFilePath()
+                If Not IO.File.Exists(path) Then Return ""
+                Return NormalizeLanguage(IO.File.ReadAllText(path).Trim())
+            Catch
+                Return ""
+            End Try
+        End Function
+
+        Private Function NormalizeLanguage(language As String) As String
+            If String.Equals(language, English, StringComparison.OrdinalIgnoreCase) Then Return English
+            If String.Equals(language, Japanese, StringComparison.OrdinalIgnoreCase) Then Return Japanese
+            Return ""
+        End Function
+
+        Private Function LanguageFilePath() As String
+            Return IO.Path.Combine(SettingsDirectory(), "language.txt")
+        End Function
+
+        Private Function SettingsDirectory() As String
+            Return IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "whichllm-gui", "settings")
         End Function
 
         Public Function StaticText(value As String) As String
@@ -54,7 +91,7 @@ Namespace Infrastructure
             {"根拠", "Evidence"},
             {"直接ベンチマークだけに絞るか、近いモデルの推定や根拠なし候補も含めるかを選びます。", "Choose whether to require direct benchmarks or include close estimates and unevidenced models."},
             {"快適度の条件", "Fit Filter"},
-            {"CPUだけも許すか、GPUを使う候補だけにするか、GPUメモリ内に収まる候補だけにするかを選びます。", "Choose whether CPU-only is allowed, GPU use is required, or the whole model must fit in GPU memory."},
+            {"CPUのみも含めるか、GPUからあふれてもOKにするか、GPUメモリ内に収まる候補だけにするかを選びます。", "Choose whether to include CPU-only candidates, allow GPU spillover, or require the whole model to fit in GPU memory."},
             {"速度の条件", "Speed Filter"},
             {"tok/sは1秒あたりに生成できるトークン数です。10以上なら普段使い、30以上ならかなり速めの目安です。", "tok/s is generated tokens per second. 10+ is usable; 30+ feels fast."},
             {"量子化", "Quantization"},

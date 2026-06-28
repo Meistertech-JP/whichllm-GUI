@@ -30,6 +30,23 @@ Class MainWindow
         ApplyStaticLocalization()
     End Sub
 
+    Private Sub MainTabs_SelectionChanged(sender As Object, e As SelectionChangedEventArgs)
+        If Not ReferenceEquals(e.OriginalSource, sender) Then Return
+        Dispatcher.BeginInvoke(Sub() ApplyStaticLocalization(), DispatcherPriority.Loaded)
+    End Sub
+
+    Private Sub LocalizedContent_Expanded(sender As Object, e As RoutedEventArgs)
+        Dim root = TryCast(sender, DependencyObject)
+        If root Is Nothing Then Return
+
+        Dispatcher.BeginInvoke(
+            Sub()
+                LocalizeDependencyObject(root)
+                LocalizeDataGridColumns(Me)
+            End Sub,
+            DispatcherPriority.Loaded)
+    End Sub
+
     Private Sub EditableSuggestionComboBox_SelectionChanged(sender As Object, e As SelectionChangedEventArgs)
         Dim combo = TryCast(sender, ComboBox)
         If combo Is Nothing OrElse e.AddedItems.Count = 0 Then Return

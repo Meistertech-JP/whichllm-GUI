@@ -10,6 +10,10 @@ Namespace Models
     Public Class ComboOption
         Public Property Label As String = ""
         Public Property Value As String = ""
+
+        Public Overrides Function ToString() As String
+            Return Label
+        End Function
     End Class
 
     Public Class RankedModelRow
