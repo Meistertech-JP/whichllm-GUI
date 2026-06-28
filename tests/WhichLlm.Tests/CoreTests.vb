@@ -49,7 +49,10 @@ Namespace WhichLlm.Tests
             Dim rtx2060Super = catalog.Resolve("GeForce RTX 2060 SUPER")
             Dim rtx2080Ti = catalog.Resolve("RTX 2080 Ti")
             Dim radeonVII = catalog.Resolve("AMD Radeon VII")
+            Dim radeonProVII = catalog.Resolve("Radeon Pro VII")
+            Dim mi60 = catalog.Resolve("MI60")
             Dim rx5700Xt = catalog.Resolve("Radeon RX 5700 XT")
+            Dim rxVega64 = catalog.Resolve("Vega 64")
 
             Assert.AreEqual("NVIDIA", rtx2060Super.Vendor)
             Assert.AreEqual("8.0 GB", Formatters.FormatBytes(rtx2060Super.VramBytes))
@@ -58,9 +61,25 @@ Namespace WhichLlm.Tests
             Assert.AreEqual("AMD", radeonVII.Vendor)
             Assert.AreEqual("16.0 GB", Formatters.FormatBytes(radeonVII.VramBytes))
             Assert.AreEqual(1024.0R, radeonVII.MemoryBandwidthGbps.Value)
+            Assert.AreEqual("16.0 GB", Formatters.FormatBytes(radeonProVII.VramBytes))
+            Assert.AreEqual("32.0 GB", Formatters.FormatBytes(mi60.VramBytes))
             Assert.AreEqual("8.0 GB", Formatters.FormatBytes(rx5700Xt.VramBytes))
+            Assert.AreEqual("8.0 GB", Formatters.FormatBytes(rxVega64.VramBytes))
             CollectionAssert.Contains(catalog.CommonGpuNames().ToList(), "RTX 2080 Ti")
             CollectionAssert.Contains(catalog.CommonGpuNames().ToList(), "Radeon VII")
+            CollectionAssert.Contains(catalog.CommonGpuNames().ToList(), "Radeon Pro VII")
+            CollectionAssert.Contains(catalog.CommonGpuNames().ToList(), "Radeon Instinct MI60")
+        End Sub
+
+        <TestMethod>
+        Public Sub GpuCatalogCommonNamesAreGroupedByGeneration()
+            Dim catalog As IGpuCatalog = New GpuCatalog()
+            Dim names = catalog.CommonGpuNames().ToList()
+
+            Assert.IsTrue(names.IndexOf("RX 7600") < names.IndexOf("RX 6950 XT"))
+            Assert.IsTrue(names.IndexOf("RX 5500 XT 4GB") < names.IndexOf("Radeon VII"))
+            Assert.IsTrue(names.IndexOf("Radeon Instinct MI50") < names.IndexOf("RX Vega 64"))
+            Assert.IsTrue(names.IndexOf("Intel Arc B580") < names.IndexOf("Intel Arc A770"))
         End Sub
 
         <TestMethod>
@@ -138,6 +157,44 @@ Namespace WhichLlm.Tests
         End Sub
 
         <TestMethod>
+        Public Sub VramEstimatorUsesArchitectureKvCacheForLongContext()
+            Dim estimator As IVramEstimator = New VramEstimator()
+            Dim model = New ModelInfo With {.RepoId = "meta-llama/Llama-3.1-8B-Instruct", .ParameterCountB = 8}
+            Dim modelVariant = New ModelVariant With {.Quantization = "Q4_K_M"}
+
+            Dim kv4k = VramEstimator.EstimateKvCacheBytes(model, 4096)
+            Dim kv128k = VramEstimator.EstimateKvCacheBytes(model, 128000)
+            Dim required128k = estimator.EstimateRequiredBytes(model, modelVariant, 128000)
+            Dim fit = estimator.ClassifyFit(required128k, HardwareWithGpu("RX 6900 XT", 16), New RankingOptions())
+
+            Assert.AreEqual(512L * 1024 * 1024, kv4k)
+            Assert.IsTrue(kv128k > 15L * 1024 * 1024 * 1024)
+            Assert.IsTrue(required128k > 20L * 1024 * 1024 * 1024)
+            Assert.AreNotEqual("full_gpu", fit.FitType)
+            Assert.AreEqual("partial_offload", fit.FitType)
+        End Sub
+
+        <TestMethod>
+        Public Sub VramEstimatorDoesNotUseMoeActiveParamsForKvCache()
+            Dim model = New ModelInfo With {
+                .RepoId = "deepseek-ai/DeepSeek-V3",
+                .ParameterCountB = 671,
+                .ActiveParameterCountB = 37
+            }
+
+            Dim kv64k = VramEstimator.EstimateKvCacheBytes(model, 65536)
+
+            Assert.IsTrue(kv64k > 48L * 1024 * 1024 * 1024)
+        End Sub
+
+        <TestMethod>
+        Public Sub QuantizationRulesTreatsQatAsKnownQuant()
+            Assert.IsTrue(QuantizationRules.IsQat("QAT"))
+            Assert.AreEqual(0.57R, QuantizationRules.BytesPerParam("QAT"), 0.0001R)
+            Assert.AreEqual(0.05R, QuantizationRules.QuantPenalty("QAT"), 0.0001R)
+        End Sub
+
+        <TestMethod>
         Public Sub SnippetGeneratorCreatesGgufCommand()
             Dim generator As ISnippetGenerator = New SnippetGenerator()
             Dim model = New ModelInfo With {.RepoId = "example/model-GGUF", .ParameterCountB = 7}
@@ -192,6 +249,48 @@ Namespace WhichLlm.Tests
         End Function
 
         <TestMethod>
+        Public Async Function RankingDoesNotSynthesizeQatForPlainModels() As Task
+            Dim ranker = BuildRanker()
+            Dim models = New List(Of ModelInfo) From {
+                TestModel("Qwen/Qwen3-14B", 14, "chat"),
+                TestModel("Qwen/Qwen3-8B", 8, "chat")
+            }
+            Dim options = New RankingOptions With {.Profile = "general", .UseCase = "general", .Quant = "QAT", .Top = 5}
+
+            Dim result = Await ranker.RankAsync(models, HardwareWithGpu("RTX 4090", 24), SeedBenchmarks(), options)
+
+            Assert.AreEqual(0, result.Models.Count)
+        End Function
+
+        <TestMethod>
+        Public Async Function RankingAllowsQatWhenQatVariantExists() As Task
+            Dim ranker = BuildRanker()
+            Dim model = TestModel("unsloth/gemma-4-26B-A4B-it-qat-GGUF", 26, "chat")
+            model.Variants.Clear()
+            model.Variants.Add(New ModelVariant With {.Quantization = "QAT", .FileName = "gemma-4-26B-A4B-it-qat-UD-Q4_K_XL.gguf", .RuntimeKind = "gguf"})
+            Dim options = New RankingOptions With {.Profile = "general", .UseCase = "general", .Quant = "QAT", .Top = 5}
+
+            Dim result = Await ranker.RankAsync(New List(Of ModelInfo) From {model}, HardwareWithGpu("RTX 4090", 24), SeedBenchmarks(), options)
+
+            Assert.AreEqual(1, result.Models.Count)
+            Assert.AreEqual("QAT", result.Models(0).SelectedVariant.Quantization)
+        End Function
+
+        <TestMethod>
+        Public Async Function RankingStillSynthesizesOrdinaryGgufQuantForBaseModels() As Task
+            Dim ranker = BuildRanker()
+            Dim model = TestModel("Qwen/Qwen3-8B", 8, "chat")
+            model.Variants.Clear()
+            Dim options = New RankingOptions With {.Profile = "general", .UseCase = "general", .Quant = "Q5_0", .Top = 5}
+
+            Dim result = Await ranker.RankAsync(New List(Of ModelInfo) From {model}, HardwareWithGpu("RTX 4090", 24), SeedBenchmarks(), options)
+
+            Assert.AreEqual(1, result.Models.Count)
+            Assert.AreEqual("Q5_0", result.Models(0).SelectedVariant.Quantization)
+            Assert.IsTrue(result.Models(0).SelectedVariant.IsSynthetic)
+        End Function
+
+        <TestMethod>
         Public Async Function PlanPrefersPracticalModelAndBalancedGpuSuggestions() As Task
             Dim models = New List(Of ModelInfo) From {
                 TestModel("Qwen/Qwen3-0.6B", 0.6, "chat"),
@@ -206,6 +305,20 @@ Namespace WhichLlm.Tests
             Assert.IsTrue(recommendations.Count > 0)
             Assert.AreNotEqual("RTX 5090", recommendations(0).Name)
             Assert.IsTrue(recommendations.Any(Function(g) g.Vendor = "AMD"))
+        End Function
+
+        <TestMethod>
+        Public Async Function PlanUsesQatForQatModelsWhenQuantBlank() As Task
+            Dim qatModel = TestModel("unsloth/gemma-4-26B-A4B-it-qat-GGUF", 26, "chat")
+            qatModel.Variants.Clear()
+            qatModel.Variants.Add(New ModelVariant With {.Quantization = "QAT", .RuntimeKind = "gguf", .IsSynthetic = True})
+            Dim service = BuildApplicationService(New List(Of ModelInfo) From {qatModel})
+
+            Dim result = Await service.PlanAsync("gemma 4 26b qat", "", 4096, New RankingOptions())
+
+            Assert.AreEqual("unsloth/gemma-4-26B-A4B-it-qat-GGUF", result.MatchedModel.RepoId)
+            Assert.AreEqual(1, result.Rows.Count)
+            Assert.AreEqual("QAT", result.Rows(0).Quantization)
         End Function
 
         <TestMethod>

@@ -79,12 +79,12 @@ Namespace Services
             If model Is Nothing Then Throw New InvalidOperationException("No model matched the plan query.")
 
             Dim hardware = Await _hardwareDetector.DetectAsync(options, cancellationToken)
-            Dim targetQuants = If(String.IsNullOrWhiteSpace(quant), QuantizationRules.PreferredQuants(), New List(Of String) From {quant})
+            Dim targetQuants = PlanQuantsForModel(model, quant)
             Dim commonGpus = _gpuCatalog.CommonGpuNames().ToList()
             Dim result As New PlanResult With {.MatchedModel = model, .ContextLength = contextLength}
 
             For Each q In targetQuants
-                Dim modelVariant As New ModelVariant With {.Quantization = q, .RuntimeKind = "gguf", .IsSynthetic = True}
+                Dim modelVariant = SelectPlanVariant(model, q)
                 Dim required = _vram.EstimateRequiredBytes(model, modelVariant, contextLength)
                 Dim row As New PlanRow With {
                     .Quantization = q,
@@ -224,6 +224,58 @@ Namespace Services
                 ThenBy(Function(g) g.VramGb).
                 Take(8).
                 ToList()
+        End Function
+
+        Private Shared Function PlanQuantsForModel(model As ModelInfo, requestedQuant As String) As IReadOnlyList(Of String)
+            If Not String.IsNullOrWhiteSpace(requestedQuant) Then
+                Return New List(Of String) From {requestedQuant.Trim()}
+            End If
+
+            If IsQatModel(model) Then
+                Return New List(Of String) From {"QAT"}
+            End If
+
+            Return QuantizationRules.PreferredQuants()
+        End Function
+
+        Private Shared Function SelectPlanVariant(model As ModelInfo, quant As String) As ModelVariant
+            Dim match = model.Variants.
+                Where(Function(v) VariantMatchesQuant(v, quant)).
+                OrderBy(Function(v) If(v.IsSynthetic, 1, 0)).
+                FirstOrDefault()
+
+            If match IsNot Nothing Then Return match
+            Return New ModelVariant With {.Quantization = quant, .RuntimeKind = "gguf", .IsSynthetic = True}
+        End Function
+
+        Private Shared Function VariantMatchesQuant(modelVariant As ModelVariant, quant As String) As Boolean
+            If modelVariant Is Nothing Then Return False
+            If String.Equals(modelVariant.Quantization, quant, StringComparison.OrdinalIgnoreCase) Then Return True
+            If QuantizationRules.IsQat(quant) Then
+                Return QuantizationRules.IsQat(modelVariant.Quantization) OrElse ContainsQatToken(modelVariant.FileName)
+            End If
+            Return False
+        End Function
+
+        Private Shared Function IsQatModel(model As ModelInfo) As Boolean
+            If model Is Nothing Then Return False
+
+            Dim fields As New List(Of String) From {
+                model.RepoId,
+                model.DisplayName,
+                model.BaseModel,
+                model.Architecture,
+                model.PipelineTag
+            }
+            fields.AddRange(model.Tags)
+            fields.AddRange(model.Variants.Select(Function(v) $"{v.Quantization} {v.FileName}"))
+
+            Return fields.Any(AddressOf ContainsQatToken)
+        End Function
+
+        Private Shared Function ContainsQatToken(value As String) As Boolean
+            If String.IsNullOrWhiteSpace(value) Then Return False
+            Return Regex.IsMatch(value, "(^|[^a-z0-9])qat([^a-z0-9]|$)", RegexOptions.IgnoreCase)
         End Function
 
         Private Shared Function IsUsefulPlanningGpu(gpu As GpuInfo) As Boolean

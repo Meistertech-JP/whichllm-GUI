@@ -19,6 +19,7 @@ Namespace Engine
             {"BF16", 0.0R},
             {"FP16", 0.0R},
             {"FP8", 0.02R},
+            {"QAT", 0.05R},
             {"AWQ", 0.05R},
             {"GPTQ", 0.06R}
         }
@@ -39,6 +40,7 @@ Namespace Engine
             {"BF16", 2.0R},
             {"FP16", 2.0R},
             {"FP8", 1.05R},
+            {"QAT", 0.57R},
             {"AWQ", 0.65R},
             {"GPTQ", 0.65R}
         }
@@ -51,6 +53,7 @@ Namespace Engine
             If quantization.StartsWith("Q5", StringComparison.OrdinalIgnoreCase) Then Return 0.03R
             If quantization.StartsWith("Q6", StringComparison.OrdinalIgnoreCase) Then Return 0.02R
             If quantization.StartsWith("Q8", StringComparison.OrdinalIgnoreCase) Then Return 0.01R
+            If IsQat(quantization) Then Return 0.05R
             If quantization.Contains("AWQ", StringComparison.OrdinalIgnoreCase) Then Return 0.05R
             If quantization.Contains("GPTQ", StringComparison.OrdinalIgnoreCase) Then Return 0.06R
             Return 0.05R
@@ -64,8 +67,14 @@ Namespace Engine
             If quantization.StartsWith("Q5", StringComparison.OrdinalIgnoreCase) Then Return 0.69R
             If quantization.StartsWith("Q6", StringComparison.OrdinalIgnoreCase) Then Return 0.78R
             If quantization.StartsWith("Q8", StringComparison.OrdinalIgnoreCase) Then Return 1.06R
+            If IsQat(quantization) Then Return 0.57R
             If quantization.Contains("AWQ", StringComparison.OrdinalIgnoreCase) OrElse quantization.Contains("GPTQ", StringComparison.OrdinalIgnoreCase) Then Return 0.65R
             Return 0.57R
+        End Function
+
+        Public Function IsQat(quantization As String) As Boolean
+            Return Not String.IsNullOrWhiteSpace(quantization) AndAlso
+                quantization.Contains("QAT", StringComparison.OrdinalIgnoreCase)
         End Function
 
         Public Function PreferredQuants() As IReadOnlyList(Of String)

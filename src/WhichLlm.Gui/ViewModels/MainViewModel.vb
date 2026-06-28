@@ -21,9 +21,13 @@ Namespace ViewModels
         Private ReadOnly _service As WhichLlmApplicationService
         Private ReadOnly _export As New ExportService()
         Private _lastRanking As RankingResult
+        Private _lastHardware As HardwareInfo
+        Private _lastPlan As PlanResult
+        Private _lastUpgrade As UpgradeResult
         Private _isBusy As Boolean
-        Private _statusMessage As String = "準備完了"
+        Private _statusMessage As String = AppText.Text("準備完了", "Ready")
         Private _selectedResult As RankedModelRow
+        Private _selectedLanguage As String = AppText.InitialLanguage()
         Private _selectedUseCase As String = "general"
         Private _selectedEvidence As String = "base"
         Private _selectedFit As String = "any"
@@ -42,34 +46,20 @@ Namespace ViewModels
         Private _modelSuggestionsLoaded As Boolean
         Private Const DefaultSuggestionLimit As Integer = 28
         Private Const ModelSuggestionLimit As Integer = 140
+        Private Const GpuSuggestionLimit As Integer = 120
+
+        Public Event LanguageChanged As EventHandler
 
         Public Sub New()
             _service = WhichLlmApplicationService.CreateDefault()
 
-            UseCases = New ObservableCollection(Of ComboOption)(New List(Of ComboOption) From {
-                New ComboOption With {.Label = "日常の文章と調べ物", .Value = "general"},
-                New ComboOption With {.Label = "会話", .Value = "chat"},
-                New ComboOption With {.Label = "プログラミング", .Value = "coding"},
-                New ComboOption With {.Label = "論理・数学", .Value = "reasoning"},
-                New ComboOption With {.Label = "画像も使う", .Value = "multimodal"},
-                New ComboOption With {.Label = "検索・分類", .Value = "embedding"},
-                New ComboOption With {.Label = "すべて見る", .Value = "any"}
-            })
-            EvidenceModes = New ObservableCollection(Of ComboOption)(New List(Of ComboOption) From {
-                New ComboOption With {.Label = "直接・近いモデルの根拠", .Value = "base"},
-                New ComboOption With {.Label = "直接ベンチマークのみ", .Value = "strict"},
-                New ComboOption With {.Label = "根拠なしも含める", .Value = "any"}
-            })
-            FitModes = New ObservableCollection(Of ComboOption)(New List(Of ComboOption) From {
-                New ComboOption With {.Label = "このPCで動けばOK", .Value = "any"},
-                New ComboOption With {.Label = "GPUを使うものだけ", .Value = "gpu"},
-                New ComboOption With {.Label = "GPUメモリ内に収まるものだけ", .Value = "full-gpu"}
-            })
-            SpeedModes = New ObservableCollection(Of ComboOption)(New List(Of ComboOption) From {
-                New ComboOption With {.Label = "速度で絞り込まない", .Value = "any"},
-                New ComboOption With {.Label = "普段使い向け (10 tok/s以上)", .Value = "usable"},
-                New ComboOption With {.Label = "高速応答 (30 tok/s以上)", .Value = "fast"}
-            })
+            AppText.CurrentLanguage = _selectedLanguage
+            LanguageOptions = New ObservableCollection(Of ComboOption)()
+            UseCases = New ObservableCollection(Of ComboOption)()
+            EvidenceModes = New ObservableCollection(Of ComboOption)()
+            FitModes = New ObservableCollection(Of ComboOption)()
+            SpeedModes = New ObservableCollection(Of ComboOption)()
+            RefreshLocalizedChoiceLists()
 
             _allGpuOptions = _service.AllGpuNames().ToList()
             QuantOptions = New ObservableCollection(Of String)()
@@ -108,6 +98,26 @@ Namespace ViewModels
         Public Property RamBudgetText As String = "available"
         Public Property PlanContextText As String = "4096"
 
+        Public Property SelectedLanguage As String
+            Get
+                Return _selectedLanguage
+            End Get
+            Set(value As String)
+                Dim normalized = If(String.Equals(value, AppText.English, StringComparison.OrdinalIgnoreCase), AppText.English, AppText.Japanese)
+                If SetProperty(_selectedLanguage, normalized) Then
+                    AppText.CurrentLanguage = normalized
+                    RefreshLocalizedChoiceLists()
+                    RefreshRowsForLanguage()
+                    OnPropertyChanged(NameOf(AppTitle))
+                    OnPropertyChanged(NameOf(AppVersion))
+                    OnPropertyChanged(NameOf(IsBusyLabel))
+                    OnPropertyChanged(NameOf(SelectedDetails))
+                    StatusMessage = L("表示言語を変更しました", "Display language changed")
+                    RaiseEvent LanguageChanged(Me, EventArgs.Empty)
+                End If
+            End Set
+        End Property
+
         Public Property QuantText As String
             Get
                 Return _quantText
@@ -122,7 +132,7 @@ Namespace ViewModels
                 Return _simulatedGpuText
             End Get
             Set(value As String)
-                If SetProperty(_simulatedGpuText, If(value, "")) Then RefreshOptions(GpuOptions, _allGpuOptions, _simulatedGpuText)
+                If SetProperty(_simulatedGpuText, If(value, "")) Then RefreshOptions(GpuOptions, _allGpuOptions, _simulatedGpuText, GpuSuggestionLimit)
             End Set
         End Property
 
@@ -149,7 +159,7 @@ Namespace ViewModels
                 Return _upgradeTargetsText
             End Get
             Set(value As String)
-                If SetProperty(_upgradeTargetsText, If(value, "")) Then RefreshOptions(UpgradeGpuOptions, _allGpuOptions, _upgradeTargetsText)
+                If SetProperty(_upgradeTargetsText, If(value, "")) Then RefreshOptions(UpgradeGpuOptions, _allGpuOptions, _upgradeTargetsText, GpuSuggestionLimit)
             End Set
         End Property
 
@@ -175,6 +185,7 @@ Namespace ViewModels
         Public ReadOnly Property EvidenceModes As ObservableCollection(Of ComboOption)
         Public ReadOnly Property FitModes As ObservableCollection(Of ComboOption)
         Public ReadOnly Property SpeedModes As ObservableCollection(Of ComboOption)
+        Public ReadOnly Property LanguageOptions As ObservableCollection(Of ComboOption)
         Public ReadOnly Property QuantOptions As ObservableCollection(Of String)
         Public ReadOnly Property PlanQuantOptions As ObservableCollection(Of String)
         Public ReadOnly Property SnippetQuantOptions As ObservableCollection(Of String)
@@ -245,7 +256,7 @@ Namespace ViewModels
 
         Public ReadOnly Property SelectedDetails As String
             Get
-                If SelectedResult Is Nothing Then Return "「おすすめを探す」を押すと、このPCで使えるモデルの詳細がここに出ます。"
+                If SelectedResult Is Nothing Then Return L("「おすすめを探す」を押すと、このPCで使えるモデルの詳細がここに出ます。", "Press Find Recommendations to show details for models that can run on this PC.")
                 Return SelectedResult.Details
             End Get
         End Property
@@ -287,7 +298,7 @@ Namespace ViewModels
 
         Public ReadOnly Property IsBusyLabel As String
             Get
-                Return If(IsBusy, "処理中", "待機中")
+                Return If(IsBusy, L("処理中", "Working"), L("待機中", "Idle"))
             End Get
         End Property
 
@@ -310,7 +321,7 @@ Namespace ViewModels
             End Set
         End Property
 
-        Private _recommendationHardwareSummary As String = "このPC: 検出中..."
+        Private _recommendationHardwareSummary As String = AppText.Text("このPC: 検出中...", "This PC: detecting...")
         Public Property RecommendationHardwareSummary As String
             Get
                 Return _recommendationHardwareSummary
@@ -389,6 +400,12 @@ Namespace ViewModels
             End Get
         End Property
 
+        Public ReadOnly Property AppTitle As String
+            Get
+                Return $"whichllm GUI {AppVersion}"
+            End Get
+        End Property
+
         Public Async Function InitializeAsync() As Task
             Await DetectHardwareAsync()
             Await RefreshModelSuggestionsAsync()
@@ -397,7 +414,7 @@ Namespace ViewModels
         End Function
 
         Private Async Function RunRecommendationAsync() As Task
-            Await RunWithBusyAsync("推薦を計算しています...", Async Function()
+            Await RunWithBusyAsync(L("推薦を計算しています...", "Calculating recommendations..."), Async Function()
                 Dim options = BuildOptions()
                 Dim result = Await _service.RankAsync(options)
                 _lastRanking = result
@@ -411,78 +428,81 @@ Namespace ViewModels
                 HasResults = RecommendationRows.Count > 0
                 OnPropertyChanged(NameOf(TopPick))
                 StatusMessage = If(HasResults,
-                    $"おすすめが出ました（{RecommendationRows.Count}件）",
-                    "条件に合うモデルが見つかりませんでした。詳細条件をゆるめてお試しください。")
+                    L($"おすすめが出ました（{RecommendationRows.Count}件）", $"Found {RecommendationRows.Count} recommendations"),
+                    L("条件に合うモデルが見つかりませんでした。詳細条件をゆるめてお試しください。", "No models matched the current filters. Try loosening the advanced filters."))
                 CopyMarkdownCommand.RaiseCanExecuteChanged()
                 CopyJsonCommand.RaiseCanExecuteChanged()
             End Function)
         End Function
 
         Private Async Function DetectHardwareAsync() As Task
-            Await RunWithBusyAsync("ハードウェアを検出しています...", Async Function()
+            Await RunWithBusyAsync(L("ハードウェアを検出しています...", "Detecting hardware..."), Async Function()
                 Dim hardware = Await _service.DetectHardwareAsync(BuildOptions())
+                _lastHardware = hardware
                 HardwareRows.Clear()
                 For Each gpu In hardware.Gpus
                     HardwareRows.Add(New HardwareGpuRow(gpu))
                 Next
                 HardwareSummary = BuildHardwareSummary(hardware)
                 RecommendationHardwareSummary = BuildHardwareInline(hardware)
-                StatusMessage = "ハードウェア検出完了"
+                StatusMessage = L("ハードウェア検出完了", "Hardware detection complete")
             End Function)
         End Function
 
         Private Async Function RunPlanAsync() As Task
-            Await RunWithBusyAsync("プランを作成しています...", Async Function()
+            Await RunWithBusyAsync(L("プランを作成しています...", "Creating plan..."), Async Function()
                 Await RefreshModelSuggestionsAsync()
                 Dim options = BuildOptions()
                 Dim contextLength = InputParsers.ParseContextLength(PlanContextText, options.ContextLength)
                 Dim result = Await _service.PlanAsync(PlanQuery, PlanQuant, contextLength, options)
+                _lastPlan = result
                 RememberModels(New List(Of ModelInfo) From {result.MatchedModel})
                 PlanRows.Clear()
                 For Each row In result.Rows
                     PlanRows.Add(New PlanDisplayRow(row))
                 Next
-                PlanSummary = $"候補: {result.MatchedModel.RepoId} / 文脈長 {result.ContextLength:N0}"
-                StatusMessage = "プランを作成しました"
+                PlanSummary = L($"候補: {result.MatchedModel.RepoId} / 文脈長 {result.ContextLength:N0}", $"Matched: {result.MatchedModel.RepoId} / context {result.ContextLength:N0}")
+                StatusMessage = L("プランを作成しました", "Plan created")
             End Function)
         End Function
 
         Private Async Function RunUpgradeAsync() As Task
-            Await RunWithBusyAsync("GPU比較を計算しています...", Async Function()
+            Await RunWithBusyAsync(L("GPU比較を計算しています...", "Calculating GPU comparison..."), Async Function()
                 Dim targets = SplitInputs(UpgradeTargetsText)
                 Dim result = Await _service.UpgradeAsync(targets, BuildOptions())
+                _lastUpgrade = result
                 UpgradeRows.Clear()
                 For Each row In result.Rows
                     UpgradeRows.Add(New UpgradeDisplayRow(row))
                 Next
-                UpgradeSummary = $"現在のPCの最有力: {result.CurrentTopModel} ({result.CurrentScore:0.0})"
-                StatusMessage = "GPU比較を作成しました"
+                UpgradeSummary = L($"現在のPCの最有力: {result.CurrentTopModel} ({result.CurrentScore:0.0})", $"Current top model: {result.CurrentTopModel} ({result.CurrentScore:0.0})")
+                StatusMessage = L("GPU比較を作成しました", "GPU comparison created")
             End Function)
         End Function
 
         Private Async Function GenerateSnippetAsync() As Task
-            Await RunWithBusyAsync("スニペットを生成しています...", Async Function()
+            Await RunWithBusyAsync(L("スニペットを生成しています...", "Generating snippet..."), Async Function()
                 Await RefreshModelSuggestionsAsync()
                 Dim result = Await _service.SnippetAsync(SnippetQuery, SnippetQuant, BuildOptions())
                 RememberModels(New List(Of ModelInfo) From {result.Model})
                 SnippetCommandLine = result.CommandLine
                 SnippetCode = result.Code
-                StatusMessage = $"スニペット生成完了: {result.Model.RepoId}"
+                StatusMessage = L($"スニペット生成完了: {result.Model.RepoId}", $"Snippet generated: {result.Model.RepoId}")
             End Function)
         End Function
 
         Private Sub CopyMarkdown()
             If _lastRanking Is Nothing Then Return
-            CopyTextToClipboard(_export.RankingToMarkdown(_lastRanking), "Markdown表をコピーしました")
+            CopyTextToClipboard(_export.RankingToMarkdown(_lastRanking), L("Markdown表をコピーしました", "Markdown table copied"))
         End Sub
 
         Private Sub CopyJson()
             If _lastRanking Is Nothing Then Return
-            CopyTextToClipboard(_export.RankingToJson(_lastRanking), "JSONをコピーしました")
+            CopyTextToClipboard(_export.RankingToJson(_lastRanking), L("JSONをコピーしました", "JSON copied"))
         End Sub
 
         Private Sub CopySnippet()
-            CopyTextToClipboard(SnippetCommandLine & Environment.NewLine & Environment.NewLine & SnippetCode, "スニペットをコピーしました")
+            CopyTextToClipboard(SnippetCommandLine & Environment.NewLine & Environment.NewLine & SnippetCode, L("スニペットをコピーしました", "Snippet copied"))
         End Sub
 
         Private Sub CopyTextToClipboard(text As String, successMessage As String)
@@ -494,7 +514,7 @@ Namespace ViewModels
                 Catch ex As Exception When attempt < 3
                     Global.System.Threading.Thread.Sleep(80)
                 Catch ex As Exception
-                    StatusMessage = "クリップボードにコピーできませんでした。ほかのアプリが使用中の可能性があります。"
+                    StatusMessage = L("クリップボードにコピーできませんでした。ほかのアプリが使用中の可能性があります。", "Could not copy to the clipboard. Another app may be using it.")
                     Return
                 End Try
             Next
@@ -506,7 +526,7 @@ Namespace ViewModels
             Try
                 Await work()
             Catch ex As Exception
-                StatusMessage = "エラー: " & ex.Message
+                StatusMessage = L("エラー: ", "Error: ") & ex.Message
             Finally
                 IsBusy = False
             End Try
@@ -561,7 +581,7 @@ Namespace ViewModels
                 RememberModels(suggestions)
                 _modelSuggestionsLoaded = True
                 If Not IsBusy Then
-                    StatusMessage = $"モデル情報を準備しました（{_knownModelOptions.Count}件）"
+                    StatusMessage = L($"モデル情報を準備しました（{_knownModelOptions.Count}件）", $"Prepared {_knownModelOptions.Count} model suggestions")
                 End If
             Catch
                 ' モデル候補の取得は入力補助なので、オフライン環境では既存候補のまま続行する。
@@ -589,10 +609,92 @@ Namespace ViewModels
             RefreshOptions(QuantOptions, _allQuantOptions, QuantText)
             RefreshOptions(PlanQuantOptions, _allQuantOptions, PlanQuant)
             RefreshOptions(SnippetQuantOptions, _allQuantOptions, SnippetQuant)
-            RefreshOptions(GpuOptions, _allGpuOptions, SimulatedGpuText)
-            RefreshOptions(UpgradeGpuOptions, _allGpuOptions, UpgradeTargetsText)
+            RefreshOptions(GpuOptions, _allGpuOptions, SimulatedGpuText, GpuSuggestionLimit)
+            RefreshOptions(UpgradeGpuOptions, _allGpuOptions, UpgradeTargetsText, GpuSuggestionLimit)
             RefreshOptions(PlanModelOptions, _knownModelOptions, PlanQuery, ModelSuggestionLimit)
             RefreshOptions(SnippetModelOptions, _knownModelOptions, SnippetQuery, ModelSuggestionLimit)
+        End Sub
+
+        Private Sub RefreshLocalizedChoiceLists()
+            ReplaceOptions(LanguageOptions, New List(Of ComboOption) From {
+                New ComboOption With {.Label = "日本語", .Value = AppText.Japanese},
+                New ComboOption With {.Label = "English", .Value = AppText.English}
+            })
+            ReplaceOptions(UseCases, New List(Of ComboOption) From {
+                New ComboOption With {.Label = L("日常の文章と調べ物", "Everyday writing and research"), .Value = "general"},
+                New ComboOption With {.Label = L("会話", "Chat"), .Value = "chat"},
+                New ComboOption With {.Label = L("プログラミング", "Coding"), .Value = "coding"},
+                New ComboOption With {.Label = L("論理・数学", "Reasoning and math"), .Value = "reasoning"},
+                New ComboOption With {.Label = L("画像も使う", "Images too"), .Value = "multimodal"},
+                New ComboOption With {.Label = L("検索・分類", "Search and classification"), .Value = "embedding"},
+                New ComboOption With {.Label = L("すべて見る", "Show everything"), .Value = "any"}
+            })
+            ReplaceOptions(EvidenceModes, New List(Of ComboOption) From {
+                New ComboOption With {.Label = L("直接・近いモデルの根拠", "Direct or close evidence"), .Value = "base"},
+                New ComboOption With {.Label = L("直接ベンチマークのみ", "Direct benchmarks only"), .Value = "strict"},
+                New ComboOption With {.Label = L("根拠なしも含める", "Include models without evidence"), .Value = "any"}
+            })
+            ReplaceOptions(FitModes, New List(Of ComboOption) From {
+                New ComboOption With {.Label = L("このPCで動けばOK", "Runnable on this PC"), .Value = "any"},
+                New ComboOption With {.Label = L("GPUからあふれてもOK", "OK if it spills from GPU"), .Value = "gpu"},
+                New ComboOption With {.Label = L("GPUだけで快適（VRAM内）", "Fits entirely in GPU memory"), .Value = "full-gpu"}
+            })
+            ReplaceOptions(SpeedModes, New List(Of ComboOption) From {
+                New ComboOption With {.Label = L("速度で絞り込まない", "Do not filter by speed"), .Value = "any"},
+                New ComboOption With {.Label = L("普段使い向け (10 tok/s以上)", "Everyday use (10+ tok/s)"), .Value = "usable"},
+                New ComboOption With {.Label = L("高速応答 (30 tok/s以上)", "Fast response (30+ tok/s)"), .Value = "fast"}
+            })
+        End Sub
+
+        Private Shared Sub ReplaceOptions(target As ObservableCollection(Of ComboOption), values As IEnumerable(Of ComboOption))
+            If target Is Nothing Then Return
+            target.Clear()
+            For Each value In values
+                target.Add(value)
+            Next
+        End Sub
+
+        Private Sub RefreshRowsForLanguage()
+            If _lastRanking IsNot Nothing Then
+                RecommendationHardwareSummary = BuildHardwareInline(_lastRanking.Hardware)
+                Dim selectedModel = SelectedResult?.Model
+                RecommendationRows.Clear()
+                For Each row In _lastRanking.Models
+                    RecommendationRows.Add(New RankedModelRow(row))
+                Next
+                SelectedResult = RecommendationRows.FirstOrDefault(Function(row) row.Model.Equals(If(selectedModel, ""), StringComparison.OrdinalIgnoreCase))
+                If SelectedResult Is Nothing Then SelectedResult = RecommendationRows.FirstOrDefault()
+                HasResults = RecommendationRows.Count > 0
+                OnPropertyChanged(NameOf(TopPick))
+            ElseIf _lastHardware IsNot Nothing Then
+                RecommendationHardwareSummary = BuildHardwareInline(_lastHardware)
+            Else
+                RecommendationHardwareSummary = L("このPC: 検出中...", "This PC: detecting...")
+            End If
+
+            If _lastHardware IsNot Nothing Then
+                HardwareRows.Clear()
+                For Each gpu In _lastHardware.Gpus
+                    HardwareRows.Add(New HardwareGpuRow(gpu))
+                Next
+                HardwareSummary = BuildHardwareSummary(_lastHardware)
+            End If
+
+            If _lastPlan IsNot Nothing Then
+                PlanRows.Clear()
+                For Each row In _lastPlan.Rows
+                    PlanRows.Add(New PlanDisplayRow(row))
+                Next
+                PlanSummary = L($"候補: {_lastPlan.MatchedModel.RepoId} / 文脈長 {_lastPlan.ContextLength:N0}", $"Matched: {_lastPlan.MatchedModel.RepoId} / context {_lastPlan.ContextLength:N0}")
+            End If
+
+            If _lastUpgrade IsNot Nothing Then
+                UpgradeRows.Clear()
+                For Each row In _lastUpgrade.Rows
+                    UpgradeRows.Add(New UpgradeDisplayRow(row))
+                Next
+                UpgradeSummary = L($"現在のPCの最有力: {_lastUpgrade.CurrentTopModel} ({_lastUpgrade.CurrentScore:0.0})", $"Current top model: {_lastUpgrade.CurrentTopModel} ({_lastUpgrade.CurrentScore:0.0})")
+            End If
         End Sub
 
         Private Shared Sub RefreshOptions(target As ObservableCollection(Of String), candidates As IEnumerable(Of String), value As String, Optional limit As Integer = DefaultSuggestionLimit)
@@ -684,37 +786,43 @@ Namespace ViewModels
         Private Shared Function BuildHardwareSummary(hardware As HardwareInfo) As String
             Dim lines As New List(Of String) From {
                 $"CPU: {hardware.CpuName}",
-                $"物理コア: {hardware.PhysicalCores} / AVX2: {hardware.SupportsAvx2} / AVX-512: {hardware.SupportsAvx512}",
-                $"メモリ: 合計 {Formatters.FormatBytes(hardware.TotalRamBytes)} / 空き {Formatters.FormatBytes(hardware.AvailableRamBytes)}",
-                $"ディスク空き: {Formatters.FormatBytes(hardware.FreeDiskBytes)}"
+                AppText.Text($"物理コア: {hardware.PhysicalCores} / AVX2: {hardware.SupportsAvx2} / AVX-512: {hardware.SupportsAvx512}", $"Physical cores: {hardware.PhysicalCores} / AVX2: {hardware.SupportsAvx2} / AVX-512: {hardware.SupportsAvx512}"),
+                AppText.Text($"メモリ: 合計 {Formatters.FormatBytes(hardware.TotalRamBytes)} / 空き {Formatters.FormatBytes(hardware.AvailableRamBytes)}", $"RAM: total {Formatters.FormatBytes(hardware.TotalRamBytes)} / free {Formatters.FormatBytes(hardware.AvailableRamBytes)}"),
+                AppText.Text($"ディスク空き: {Formatters.FormatBytes(hardware.FreeDiskBytes)}", $"Free disk: {Formatters.FormatBytes(hardware.FreeDiskBytes)}")
             }
             lines.AddRange(hardware.DetectionNotes.Concat(hardware.BudgetNotes).Select(AddressOf FriendlyHardwareNote))
             Return String.Join(Environment.NewLine, lines.Where(Function(line) Not String.IsNullOrWhiteSpace(line)))
         End Function
 
         Private Shared Function BuildHardwareInline(hardware As HardwareInfo) As String
-            Dim cpu = If(String.IsNullOrWhiteSpace(hardware.CpuName), "未検出", hardware.CpuName)
+            Dim cpu = If(String.IsNullOrWhiteSpace(hardware.CpuName), AppText.Text("未検出", "not detected"), hardware.CpuName)
             Dim gpuText = If(hardware.Gpus.Count = 0,
-                "GPU: 未検出",
+                AppText.Text("GPU: 未検出", "GPU: not detected"),
                 "GPU: " & String.Join(", ", hardware.Gpus.Select(Function(g) $"{g.Name} / VRAM {Formatters.FormatBytes(g.VramBytes)}")))
-            Return $"CPU: {cpu} / RAM: {Formatters.FormatBytes(hardware.TotalRamBytes)} (空き {Formatters.FormatBytes(hardware.AvailableRamBytes)}) / {gpuText}"
+            Return AppText.Text(
+                $"CPU: {cpu} / RAM: {Formatters.FormatBytes(hardware.TotalRamBytes)} (空き {Formatters.FormatBytes(hardware.AvailableRamBytes)}) / {gpuText}",
+                $"CPU: {cpu} / RAM: {Formatters.FormatBytes(hardware.TotalRamBytes)} (free {Formatters.FormatBytes(hardware.AvailableRamBytes)}) / {gpuText}")
         End Function
 
         Private Shared Function FriendlyHardwareNote(note As String) As String
             Select Case note
                 Case "RAM budget capped to current available memory."
-                    Return "計算に使うメモリ上限は、現在の空きメモリに合わせています。"
+                    Return AppText.Text("計算に使うメモリ上限は、現在の空きメモリに合わせています。", "The memory budget is capped to currently available RAM.")
                 Case "Using simulated GPU input."
-                    Return "手入力したGPUを使って計算しています。"
+                    Return AppText.Text("手入力したGPUを使って計算しています。", "Using the manually entered GPU for calculation.")
                 Case "CPU-only mode is enabled; GPU detection was skipped for ranking."
-                    Return "CPUのみモードのため、推薦ではGPUを使わずに計算します。"
+                    Return AppText.Text("CPUのみモードのため、推薦ではGPUを使わずに計算します。", "CPU-only mode is enabled; recommendations ignore GPU acceleration.")
                 Case "Manual RAM budget applied."
-                    Return "手入力したメモリ上限を使っています。"
+                    Return AppText.Text("手入力したメモリ上限を使っています。", "Using the manually entered RAM budget.")
                 Case "Invalid RAM budget input; conservative default applied."
-                    Return "メモリ上限の入力を読み取れなかったため、安全寄りの値を使っています。"
+                    Return AppText.Text("メモリ上限の入力を読み取れなかったため、安全寄りの値を使っています。", "Could not read the RAM budget input; using a conservative default.")
                 Case Else
                     Return note
             End Select
+        End Function
+
+        Private Shared Function L(ja As String, en As String) As String
+            Return AppText.Text(ja, en)
         End Function
 
         Private Shared Function ProfileForUseCase(useCase As String) As String

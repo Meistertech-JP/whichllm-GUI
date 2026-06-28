@@ -144,7 +144,8 @@ Namespace Services
             End If
 
             If model.Variants.Count = 0 AndAlso id.Contains("gguf", StringComparison.OrdinalIgnoreCase) Then
-                model.Variants.Add(New ModelVariant With {.Quantization = "Q4_K_M", .IsSynthetic = True, .RuntimeKind = "gguf"})
+                Dim syntheticQuant = If(ContainsQatToken(id), "QAT", "Q4_K_M")
+                model.Variants.Add(New ModelVariant With {.Quantization = syntheticQuant, .IsSynthetic = True, .RuntimeKind = "gguf"})
             End If
 
             Return model
@@ -232,11 +233,17 @@ Namespace Services
         End Function
 
         Private Shared Function InferQuantization(fileName As String) As String
-            Dim match = Regex.Match(fileName, "(IQ[0-9]_[A-Z0-9_]+|Q[0-9]_[A-Z0-9_]+|F16|BF16|FP16|FP8)", RegexOptions.IgnoreCase)
+            Dim match = Regex.Match(fileName, "(IQ[0-9]_[A-Z0-9_]+|Q[0-9]_[A-Z0-9_]+|QAT|F16|BF16|FP16|FP8)", RegexOptions.IgnoreCase)
             If match.Success Then
                 Return match.Value.ToUpperInvariant()
             End If
+            If ContainsQatToken(fileName) Then Return "QAT"
             Return "Q4_K_M"
+        End Function
+
+        Private Shared Function ContainsQatToken(value As String) As Boolean
+            If String.IsNullOrWhiteSpace(value) Then Return False
+            Return Regex.IsMatch(value, "(^|[^a-z0-9])qat([^a-z0-9]|$)", RegexOptions.IgnoreCase)
         End Function
 
         Private Shared Function InferParamsB(id As String, tags As IEnumerable(Of String), hasCard As Boolean, cardData As JsonElement) As Double

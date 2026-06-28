@@ -5,8 +5,8 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:inf="clr-namespace:WhichLlm.Gui.Infrastructure"
         mc:Ignorable="d"
-        Title="whichllm GUI v0.1.0" Height="860" Width="1220" MinHeight="720" MinWidth="1040"
-        FontFamily="Segoe UI, Meiryo UI" Background="#F5F5F7">
+        Title="{Binding AppTitle}" Height="860" Width="1220" MinHeight="720" MinWidth="1040"
+        FontFamily="Segoe UI" Background="#F5F5F7">
     <Window.Resources>
         <SolidColorBrush x:Key="Ink" Color="#1D1D1F"/>
         <SolidColorBrush x:Key="Muted" Color="#6E6E73"/>
@@ -231,12 +231,12 @@
                     <Grid Grid.Row="2" Margin="0,12,0,0">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" MinWidth="430"/>
-                            <ColumnDefinition Width="360"/>
+                            <ColumnDefinition Width="400"/>
                         </Grid.ColumnDefinitions>
 
                         <DataGrid Grid.Column="0" ItemsSource="{Binding RecommendationRows}" SelectedItem="{Binding SelectedResult}">
                             <DataGrid.Columns>
-                                <DataGridTextColumn Binding="{Binding RankLabel}" Width="92">
+                                <DataGridTextColumn Binding="{Binding RankLabel}" Width="124">
                                     <DataGridTextColumn.Header>
                                         <TextBlock Text="おすすめ" ToolTip="総合おすすめ順の順位です。最有力がいちばんのおすすめです。"/>
                                     </DataGridTextColumn.Header>
@@ -290,7 +290,7 @@
                                     <Border Background="#E6F1FB" CornerRadius="10" Padding="9,2" HorizontalAlignment="Left">
                                         <TextBlock Text="{Binding RankLabel}" Foreground="#0C447C" FontWeight="SemiBold" FontSize="12"/>
                                     </Border>
-                                    <TextBlock Text="{Binding ModelName}" FontSize="20" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,8,0,0"/>
+                                    <TextBlock Text="{Binding ModelName}" FontSize="20" FontWeight="SemiBold" TextWrapping="Wrap" TextTrimming="CharacterEllipsis" Margin="0,8,0,0"/>
                                     <TextBlock Text="{Binding UseCaseLabel}" Style="{StaticResource Caption}" Margin="0,2,0,0"/>
                                     <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
                                         <Border CornerRadius="10" Padding="10,3" Background="{Binding FitKind, Converter={StaticResource FitBrush}, ConverterParameter=bg}">
@@ -303,9 +303,11 @@
                                             <TextBlock Text="{Binding SpeedWord}" FontWeight="SemiBold" Foreground="#3A3A3C"/>
                                         </Border>
                                     </StackPanel>
-                                    <TextBlock Text="{Binding WhyLine}" Style="{StaticResource Caption}" Margin="0,10,0,0"/>
+                                    <TextBox Text="{Binding WhyLine}" IsReadOnly="True" TextWrapping="Wrap" AcceptsReturn="True" BorderThickness="0"
+                                             Background="Transparent" Foreground="#565659" FontSize="13" Padding="0"
+                                             Margin="0,10,0,0" MinHeight="42" VerticalScrollBarVisibility="Disabled"/>
                                     <Border BorderBrush="{StaticResource Line}" BorderThickness="0,1,0,0" Margin="0,12,0,12"/>
-                                    <TextBox Text="{Binding Details}" IsReadOnly="True" TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Disabled" BorderThickness="0" Background="Transparent" FontFamily="Meiryo UI"/>
+                                    <TextBox Text="{Binding Details}" IsReadOnly="True" TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Disabled" BorderThickness="0" Background="Transparent" FontFamily="Meiryo UI" Padding="0"/>
                                 </StackPanel>
                             </ScrollViewer>
                         </Border>
@@ -532,11 +534,14 @@
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
                             <TextBlock Text="データの保存場所" Style="{StaticResource FieldLabel}" ToolTip="取得したモデル情報とベンチマーク情報を保存する場所です。"/>
                             <TextBox Grid.Column="1" Text="{Binding CachePath, Mode=OneWay}" IsReadOnly="True"/>
                             <TextBlock Grid.Row="1" Text="接続先（通常は変更不要）" Style="{StaticResource FieldLabel}" ToolTip="モデル情報の取得先（HF_ENDPOINT）です。通常はこのままで使います。"/>
                             <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding HfEndpoint, Mode=OneWay}" IsReadOnly="True"/>
+                            <TextBlock Grid.Row="2" Text="表示言語" Style="{StaticResource FieldLabel}" ToolTip="画面に表示する言語です。"/>
+                            <ComboBox Grid.Row="2" Grid.Column="1" ItemsSource="{Binding LanguageOptions}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding SelectedLanguage}" Width="180" HorizontalAlignment="Left"/>
                         </Grid>
                     </Border>
                 </Grid>

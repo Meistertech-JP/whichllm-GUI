@@ -1,6 +1,7 @@
 Option Strict On
 Option Explicit On
 
+Imports System.Text.RegularExpressions
 Imports WhichLlm.Core.Dto
 Imports WhichLlm.Core.Services
 Imports WhichLlm.Core.Utilities
@@ -81,12 +82,20 @@ Namespace Engine
         End Function
 
         Private Shared Function BuildVariants(model As ModelInfo, options As RankingOptions) As IEnumerable(Of ModelVariant)
+            Dim hasRealVariants = model.Variants.Any(Function(v) Not v.IsSynthetic)
             Dim variants = If(model.Variants.Count > 0, model.Variants, SyntheticVariantsFor(model))
             If Not String.IsNullOrWhiteSpace(options.Quant) Then
-                Return variants.
-                    Where(Function(v) v.Quantization.Equals(options.Quant, StringComparison.OrdinalIgnoreCase)).
-                    DefaultIfEmpty(New ModelVariant With {.Quantization = options.Quant, .RuntimeKind = "gguf", .IsSynthetic = True}).
+                Dim requestedQuant = options.Quant.Trim()
+                Dim matching = variants.
+                    Where(Function(v) VariantMatchesRequestedQuant(v, requestedQuant)).
                     ToList()
+
+                If matching.Count > 0 Then Return matching
+                If Not hasRealVariants AndAlso CanSynthesizeRequestedQuant(requestedQuant) Then
+                    Return New List(Of ModelVariant) From {New ModelVariant With {.Quantization = requestedQuant, .RuntimeKind = "gguf", .IsSynthetic = True}}
+                End If
+
+                Return New List(Of ModelVariant)()
             End If
 
             Return variants.
@@ -97,12 +106,41 @@ Namespace Engine
 
         Private Shared Function SyntheticVariantsFor(model As ModelInfo) As List(Of ModelVariant)
             Dim id = model.RepoId.ToLowerInvariant()
+            If ContainsQatToken(id) Then Return New List(Of ModelVariant) From {New ModelVariant With {.Quantization = "QAT", .RuntimeKind = "gguf", .IsSynthetic = True}}
             If id.Contains("awq", StringComparison.Ordinal) Then Return New List(Of ModelVariant) From {New ModelVariant With {.Quantization = "AWQ", .RuntimeKind = "transformers", .IsSynthetic = True}}
             If id.Contains("gptq", StringComparison.Ordinal) Then Return New List(Of ModelVariant) From {New ModelVariant With {.Quantization = "GPTQ", .RuntimeKind = "transformers", .IsSynthetic = True}}
             If id.Contains("fp8", StringComparison.Ordinal) Then Return New List(Of ModelVariant) From {New ModelVariant With {.Quantization = "FP8", .RuntimeKind = "transformers", .IsSynthetic = True}}
             If id.Contains("bf16", StringComparison.Ordinal) Then Return New List(Of ModelVariant) From {New ModelVariant With {.Quantization = "BF16", .RuntimeKind = "transformers", .IsSynthetic = True}}
             If id.Contains("fp16", StringComparison.Ordinal) Then Return New List(Of ModelVariant) From {New ModelVariant With {.Quantization = "FP16", .RuntimeKind = "transformers", .IsSynthetic = True}}
             Return QuantizationRules.PreferredQuants().Select(Function(q) New ModelVariant With {.Quantization = q, .RuntimeKind = "gguf", .IsSynthetic = True}).ToList()
+        End Function
+
+        Private Shared Function VariantMatchesRequestedQuant(modelVariant As ModelVariant, requestedQuant As String) As Boolean
+            If modelVariant Is Nothing Then Return False
+            If modelVariant.Quantization.Equals(requestedQuant, StringComparison.OrdinalIgnoreCase) Then Return True
+            If QuantizationRules.IsQat(requestedQuant) Then
+                Return QuantizationRules.IsQat(modelVariant.Quantization) OrElse ContainsQatToken(modelVariant.FileName)
+            End If
+            Return False
+        End Function
+
+        Private Shared Function CanSynthesizeRequestedQuant(requestedQuant As String) As Boolean
+            If String.IsNullOrWhiteSpace(requestedQuant) Then Return False
+            If QuantizationRules.IsQat(requestedQuant) Then Return False
+
+            Dim text = requestedQuant.Trim().ToUpperInvariant()
+            If text.Contains("AWQ", StringComparison.Ordinal) OrElse
+                text.Contains("GPTQ", StringComparison.Ordinal) OrElse
+                text.Contains("FP8", StringComparison.Ordinal) Then
+                Return False
+            End If
+
+            Return Regex.IsMatch(text, "^(IQ[0-9]|Q[0-9]|F16|BF16|FP16)")
+        End Function
+
+        Private Shared Function ContainsQatToken(value As String) As Boolean
+            If String.IsNullOrWhiteSpace(value) Then Return False
+            Return Regex.IsMatch(value, "(^|[^a-z0-9])qat([^a-z0-9]|$)", RegexOptions.IgnoreCase)
         End Function
 
         Private Shared Function IsExtremeLowBit(quant As String) As Boolean
