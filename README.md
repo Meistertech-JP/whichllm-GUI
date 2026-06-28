@@ -1,93 +1,145 @@
 # whichllm GUI
 
-Windows 10 / 11 向けの、ローカルLLM選びを助けるGUIアプリです。PCのCPU、RAM、GPU、VRAMを見ながら「このPCで動かしやすいモデル」を探します。
+**PCのスペックを見て、「このパソコンで動かしやすいローカルLLM」を教えてくれるWindowsアプリです。**
+Pythonのインストールは不要。ZIPを展開して起動するだけで使えます。
 
-[English README](README.en.md)
+[English README](./README.en.md)
 
-![whichllm GUI Japanese screenshot](docs/images/whichllm-gui-ja.png)
+![whichllm GUI（日本語画面）](./docs/images/whichllm-gui-ja.png)
+
+---
 
 ## これは何？
 
-whichllm GUIは、モデルを実行する前に「どのローカルLLMを選ぶか」「今のPCで快適に動くか」「GPUを替えるとどう変わるか」を見るためのツールです。
+ローカルLLM（自分のPCで動かすAIモデル）を試したいけれど、「どのモデルを選べばいいのか」「うちのPCで動くのか」が分からない――そこを助けるためのツールです。
 
-対象は、個人の日常用途でPCを使うユーザーです。モデルの実行、ダウンロード、チャットUIはあえて入れていません。
+CPU・RAM・GPU・VRAMを自動で読み取り、いまのPCで快適に動きそうなモデルを、**用途・快適度・速度・根拠つき**で一覧にします。
 
-## すぐ使う
+### できること
 
-1. Releasesから `whichllm-gui-v0.4.1-win-x64.zip` をダウンロードします。
-2. ZIPを好きな場所に展開します。
-3. `WhichLlm.Gui.exe` を起動します。
-4. 最初の画面で `おすすめを探す` を押します。
+- いまのPCに合うモデルを探す（`おすすめ`）
+- 検出したハードウェアを確認する（`このPC`）
+- 指定モデルの必要メモリを量子化ごとに試算する（`プラン`）
+- GPUを買い替えたらどう変わるかを比較する（`買い替え比較`）
+- モデルを動かすためのコードを生成する（`スニペット`）
 
-Pythonは不要です。配布ZIPは `win-x64` 自己完結版です。
+### あえてやらないこと
 
-## 主な使い方
+このアプリは**モデルのダウンロードも実行もしません**。チャットUIもありません。
+「動かす前に選ぶ」ことだけに集中した道具です。実際にモデルを動かす方法は[後述](#選んだあとどう動かす)します。
 
-- `おすすめ`: このPCに合うモデルを、用途・快適度・速度・根拠つきで一覧表示します。
-- `このPC`: 検出したCPU、RAM、GPU、VRAM、ディスク空きを確認します。
-- `プラン`: 指定したモデルについて、量子化ごとの必要メモリを見積もります。
-- `買い替え比較`: 候補GPUごとに、最有力モデルや伸び幅を比較します。
-- `スニペット`: 開発者向けのPythonコードと `uv run --no-project ...` コマンドを生成します。
-- `設定`: キャッシュ場所、Hugging Face接続先、表示言語を確認・変更します。
+---
 
-## おすすめ画面の見方
+## 動かすまで（3ステップ）
 
-- `用途`: 日常、会話、プログラミング、論理・数学、画像、検索・分類から選びます。
-- `快適度`: `快適` はGPUメモリ内に収まる見込み、`動くが重め` はGPUからあふれてCPU/RAMも使う見込みです。
-- `速度の目安`: 普段使いに十分か、とても速いかをざっくり見ます。
-- `根拠`: direct / variant / base_model / line_interp / self_reported / none を区別し、信頼度でスコアを減衰します。
+### 1. ダウンロードする
 
-## 主な特徴
+[最新リリース](https://github.com/Meistertech-JP/whichllm-GUI/releases/latest)から `whichllm-gui-vX.Y.Z-win-x64.zip` をダウンロードします。
+Windows 10 / 11（64bit）向けの自己完結版なので、**Python も .NET も別途インストールする必要はありません**。
 
-- ベンチマーク根拠は direct、variant、base_model、line_interp、self_reported の順で探します。
-- ベンチ情報源は LiveBench / Artificial Analysis / Aider / Open LLM Leaderboard / Chatbot Arena を使います。Open LLM Leaderboard と Arena は凍結ソースとして扱い、古い系譜には最新性の減衰をかけます。
-- Hugging Face取得では、人気順に加えて、最近更新されたGGUFモデルとtrendingモデルも確認します。
-- 2倍を超えるパラメータ規模の乖離がある派生、draft、MTP、fork系のベンチ継承を避けます。
-- NVIDIA Compute Capability、AMD/Apple/IntelのOS/backend互換性警告をメモリ判定のnotesに表示します。
-- 日本語 / English の表示切替に対応し、最後に選んだ表示言語を次回起動時にも使います。
-- GPU候補は世代順に並べ、`QAT` は実在するQAT variantまたはrepo/file名にQATがある場合だけ扱います。
+### 2. 展開して起動する
 
-## ハードウェア検出
+ZIPを好きな場所に展開し、`WhichLlm.Gui.exe` をダブルクリックします。
 
-GPU検出は次の順で試します。
+> **「Windows によって PC が保護されました」と出たら**
+> このアプリにはコード署名証明書を付けていないため、初回起動時にWindows SmartScreenの警告が出ることがあります。中身を確認したうえで実行するには、**「詳細情報」→「実行」** を押してください。
+> 不安な場合は、次の「配布物の確認（任意）」で中身が改ざんされていないか照合できます。
 
-- NVIDIA: `nvidia-smi`
-- AMD Radeon: `%HIP_PATH%\bin\hipInfo.exe`
-- Intel Arcなど: `xpu-smi`
-- 失敗時: WindowsのCIM/WMIとレジストリ情報
+### 3. 起動するだけ。おすすめが自動で出ます
 
-自動検出が不正確な場合は、画面上でVRAMや帯域を手入力して試算できます。
+起動するとハードウェア検出が走り、検出が終わると**このPCに合うモデルの一覧が自動で表示されます**。ボタンを押す必要はありません。これで完了です。
 
-## データ取得とキャッシュ
+### 配布物の確認（任意）
 
-モデル情報はHugging Face APIから取得します。`HF_ENDPOINT` が設定されている場合は、その接続先を使います。
+リリースには各ZIPのSHA256チェックサムを同梱しています。ダウンロードしたファイルが壊れていないか・差し替えられていないか心配なときは、PowerShellで照合できます。
 
-取得時は人気順に加えて、最近更新されたGGUFモデルとtrendingモデルも確認します。
+```powershell
+Get-FileHash .\whichllm-gui-vX.Y.Z-win-x64.zip -Algorithm SHA256
+```
 
-ベンチマーク情報は次の層で統合します。
+表示された値が、リリースに記載のチェックサムと一致すればOKです。
 
-- current: LiveBench、Artificial Analysis、Aider
-- frozen: Open LLM Leaderboard v2、Chatbot Arena ELO
-- fallback: ライブ取得が全滅した場合の最小seed
+---
 
-frozenだけに存在する古い系譜のモデルは、CLI版と同じ考え方で世代の古さに応じてスコアを減衰します。
+## 結果の読み方（おすすめ画面）
 
-インターネット接続も既存キャッシュも使えない場合は、初回起動時でも画面が空にならないよう、主要な小型〜中型モデルの最小fallback候補を使います。
+`おすすめ` の一覧は、次の観点で読みます。
 
-キャッシュは次の場所に保存されます。
+- **用途**：日常 / 会話 / プログラミング / 論理・数学 / 画像 / 検索・分類 から選びます。目的に合うモデルだけが残ります。
+- **快適度**：
+  - `快適` … GPUのメモリ内に収まる見込み。いちばん快適に動きます。
+  - `動くが重め` … GPUからあふれてCPU/RAMも使う見込み。動きはしますが遅くなります。
+- **速度の目安**：普段使いに十分か、とても速いか、をざっくり示します。
+- **根拠**：その評価が何に基づくか（実測値か、近い系譜からの推定か）を区別し、確からしさでスコアを調整しています。
 
-```text
+迷ったら、まず `快適` かつ用途が合うモデルから試すのがおすすめです。
+
+---
+
+## 選んだあと、どう動かす？
+
+このアプリはモデルを実行しないので、選んだモデルは別のツールで動かします。
+
+- **手軽に始めたい**：[Ollama](https://ollama.com) や [LM Studio](https://lmstudio.ai) のような実行アプリを使うと、コマンドやコードをほとんど書かずにモデルを動かせます。
+- **コードで動かしたい**：`スニペット` タブで、選んだモデル向けのPythonコードと `uv run --no-project ...` コマンドを生成できます。そのままコピーして使えます。
+
+whichllm GUIで「どれを動かすか」を決めてから、上のいずれかで実際に動かす、という流れになります。
+
+---
+
+## 画面の種類
+
+| タブ | 何ができるか |
+| --- | --- |
+| `おすすめ` | このPCに合うモデルを一覧表示 |
+| `このPC` | 検出したCPU / RAM / GPU / VRAM / ディスク空きを確認 |
+| `プラン` | 指定モデルの必要メモリを量子化ごとに試算 |
+| `買い替え比較` | GPU候補ごとに、最有力モデルや伸び幅を比較 |
+| `スニペット` | 実行用のPythonコード・コマンドを生成 |
+| `設定` | キャッシュ場所・Hugging Face接続先・表示言語を変更 |
+
+---
+
+## うまく動かないとき
+
+- **GPUが検出されない / VRAMの値がおかしい**
+  自動検出がうまくいかない場合は、`このPC` 画面でVRAMや帯域を手入力して試算できます。
+  GPU検出は `nvidia-smi`（NVIDIA）→ `hipInfo.exe`（AMD）→ `xpu-smi`（Intel）→ WindowsのWMI/レジストリ、の順で試します。
+- **複数のGPUを積んでいる**
+  検出した全GPUを表示し、単一モデルを分割して動かす際の「使うGPUグループ」を選べます。世代やアーキテクチャが混在したGPUを、単純にVRAMを足し算して「動く」と判定することはしません。
+- **インターネットに繋がっていない / 初回起動**
+  オンライン取得もキャッシュも使えない場合は、画面が空にならないよう主要な小型〜中型モデルの最小候補を表示します。
+- **表示言語を変えたい・キャッシュを消したい**
+  `設定` タブから、日本語 / English の切り替えとキャッシュ場所の確認ができます。
+
+---
+
+## 仕組み（データとキャッシュ）
+
+モデル情報はHugging Face APIから取得します。`HF_ENDPOINT` 環境変数が設定されていれば、その接続先を使います。人気順に加えて、最近更新されたGGUFモデルやトレンドのモデルも拾います。
+
+ベンチマーク情報は複数の情報源を層にして統合しています。
+
+- **current**：LiveBench / Artificial Analysis / Aider
+- **frozen**：Open LLM Leaderboard v2 / Chatbot Arena ELO
+- **fallback**：ライブ取得が全滅したときの最小seed
+
+frozenにしか存在しない古い系譜のモデルは、世代の古さに応じてスコアを減衰させ、過大評価を避けています。
+
+キャッシュの保存場所と有効期間は次のとおりです。
+
+```
 %LocalAppData%\whichllm-gui\cache
 ```
 
-キャッシュの有効期間:
+- モデル情報：6時間
+- ベンチマーク情報：24時間
 
-- モデル情報: 6時間
-- ベンチマーク情報: 24時間
+---
 
-## 開発
+## 開発者向け
 
-開発には.NET SDKが必要です。
+ビルドには.NET SDKが必要です。
 
 ```powershell
 dotnet restore
@@ -96,19 +148,23 @@ dotnet build src\WhichLlm.Gui\WhichLlm.Gui.vbproj
 dotnet publish src\WhichLlm.Gui\WhichLlm.Gui.vbproj -c Release -r win-x64 --self-contained true
 ```
 
-publish結果は次に出力されます。
+publishの出力先：
 
-```text
+```
 src\WhichLlm.Gui\bin\Release\net10.0-windows\win-x64\publish\
 ```
 
-## 参照元とライセンス
+バージョンごとの変更点は[Releases](https://github.com/Meistertech-JP/whichllm-GUI/releases)を参照してください。
 
-whichllm GUI 本体は MIT License で公開します。詳細は [LICENSE](LICENSE) を参照してください。
+---
+
+## ライセンスと参照元
+
+whichllm GUI 本体は MIT License で公開しています。詳細は [LICENSE](./LICENSE) を参照してください。
 
 このGUIは、次のプロジェクトを参考にしています。
 
-- whichllm: https://github.com/Andyyyy64/whichllm
-- llmfit: https://github.com/AlexsJones/llmfit
+- whichllm: <https://github.com/Andyyyy64/whichllm>
+- llmfit: <https://github.com/AlexsJones/llmfit>
 
-参照元プロジェクトの著作権表示は [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) を参照してください。
+参照元プロジェクトの著作権表示は [THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md) を参照してください。
