@@ -59,19 +59,23 @@ Namespace Models
         Public Property Details As String = ""
 
         Private Shared Function BuildDetails(source As RankedModel) As String
+            Dim published = If(source.Model.PublishedDate.HasValue, source.Model.PublishedDate.Value.ToString("yyyy-MM-dd"), "不明")
             Dim lines As New List(Of String) From {
                 $"モデル: {source.Model.RepoId}",
                 $"用途: {FriendlyUseCase(source.UseCase)}",
+                $"おすすめ度: {Formatters.FormatScore(source.Score)} / 100",
                 $"ライセンス: {If(String.IsNullOrWhiteSpace(source.Model.License), "未記載", source.Model.License)}",
                 $"人気: ダウンロード {source.Model.Downloads:N0}回 / いいね {source.Model.Likes:N0}",
                 $"規模: {FriendlyParams(source.Model.ParameterCountB)}",
                 $"動作見込み: {FriendlyFit(source.FitType)}",
+                $"量子化（圧縮形式）: {source.SelectedVariant.Quantization}",
                 $"必要なGPUメモリ: {Formatters.FormatBytes(source.VramRequiredBytes)}",
                 $"使えるGPUメモリ: {Formatters.FormatBytes(source.VramAvailableBytes)}",
                 $"速度の目安: {FriendlySpeedWord(source.EstimatedTokPerSec)}（約 {source.EstimatedTokPerSec:0} tok/s）",
                 $"速度の確かさ: {FriendlyConfidence(source.SpeedConfidence)}",
                 $"根拠: {FriendlyEvidence(source.Benchmark)}",
-                $"根拠スコア: {source.Benchmark.Score:0.#} / 信頼度 {source.Benchmark.Confidence:0.00} / 種別 {FriendlyEvidenceSource(source.Benchmark.Source)}"
+                $"根拠スコア: {source.Benchmark.Score:0.#} / 信頼度 {source.Benchmark.Confidence:0.00} / 種別 {FriendlyEvidenceSource(source.Benchmark.Source)}",
+                $"公開日: {published}"
             }
             If ShouldShowBenchmarkNotes(source.Benchmark.Notes) Then
                 lines.Add($"根拠メモ: {source.Benchmark.Notes}")

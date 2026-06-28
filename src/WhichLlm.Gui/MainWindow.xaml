@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:inf="clr-namespace:WhichLlm.Gui.Infrastructure"
         mc:Ignorable="d"
-        Title="whichllm GUI v0.1.0" Height="780" Width="1220" MinHeight="680" MinWidth="1040"
+        Title="whichllm GUI v0.1.0" Height="860" Width="1220" MinHeight="720" MinWidth="1040"
         FontFamily="Segoe UI, Meiryo UI" Background="#F5F5F7">
     <Window.Resources>
         <SolidColorBrush x:Key="Ink" Color="#1D1D1F"/>
@@ -156,9 +156,7 @@
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="*"/>
-                        <RowDefinition Height="164"/>
+                        <RowDefinition Height="*" MinHeight="240"/>
                     </Grid.RowDefinitions>
 
                     <Border Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="8" Padding="18">
@@ -221,107 +219,88 @@
                         </Border>
                     </Expander>
 
-                    <Border Grid.Row="2" Margin="0,12,0,0" Padding="18"
-                            Background="{StaticResource Surface}" BorderBrush="{StaticResource Accent}" BorderThickness="2" CornerRadius="12"
-                            Visibility="{Binding HasResults, Converter={StaticResource BoolToVis}}">
-                        <StackPanel DataContext="{Binding TopPick}">
-                            <Border Background="#E6F1FB" CornerRadius="10" Padding="9,2" HorizontalAlignment="Left">
-                                <TextBlock Text="{Binding RankLabel}" Foreground="#0C447C" FontWeight="SemiBold" FontSize="12"/>
-                            </Border>
-                            <TextBlock Text="{Binding ModelName}" FontSize="20" FontWeight="SemiBold" Margin="0,8,0,0"/>
-                            <TextBlock Text="{Binding UseCaseLabel}" Style="{StaticResource Caption}" Margin="0,2,0,0"/>
-                            <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
-                                <Border CornerRadius="10" Padding="10,3" Background="{Binding FitKind, Converter={StaticResource FitBrush}, ConverterParameter=bg}">
-                                    <StackPanel Orientation="Horizontal">
-                                        <Ellipse Width="9" Height="9" Margin="0,0,6,0" VerticalAlignment="Center" Fill="{Binding FitKind, Converter={StaticResource FitBrush}, ConverterParameter=dot}"/>
-                                        <TextBlock Text="{Binding FitLabel}" FontWeight="SemiBold" Foreground="{Binding FitKind, Converter={StaticResource FitBrush}, ConverterParameter=fg}"/>
-                                    </StackPanel>
-                                </Border>
-                                <Border CornerRadius="10" Padding="10,3" Margin="8,0,0,0" Background="#EFEFF0">
-                                    <TextBlock Text="{Binding SpeedWord}" FontWeight="SemiBold" Foreground="#3A3A3C"/>
-                                </Border>
-                            </StackPanel>
-                            <TextBlock Text="{Binding WhyLine}" Style="{StaticResource Caption}" Margin="0,10,0,0"/>
-                            <TextBlock Text="{Binding PopularityLabel}" Style="{StaticResource Caption}" Margin="0,2,0,0"/>
-                        </StackPanel>
-                    </Border>
+                    <Grid Grid.Row="2" Margin="0,12,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" MinWidth="430"/>
+                            <ColumnDefinition Width="360"/>
+                        </Grid.ColumnDefinitions>
 
-                    <DataGrid Grid.Row="3" ItemsSource="{Binding RecommendationRows}" SelectedItem="{Binding SelectedResult}">
-                        <DataGrid.Columns>
-                            <DataGridTextColumn Binding="{Binding RankLabel}" Width="90">
-                                <DataGridTextColumn.Header>
-                                    <TextBlock Text="おすすめ" ToolTip="総合スコア順の順位です。"/>
-                                </DataGridTextColumn.Header>
-                            </DataGridTextColumn>
-                            <DataGridTextColumn Binding="{Binding ModelName}" Width="*">
-                                <DataGridTextColumn.Header>
-                                    <TextBlock Text="モデル" ToolTip="Hugging Faceなどで使われるモデル名です。"/>
-                                </DataGridTextColumn.Header>
-                            </DataGridTextColumn>
-                            <DataGridTextColumn Binding="{Binding UseCaseLabel}" Width="130">
-                                <DataGridTextColumn.Header>
-                                    <TextBlock Text="用途" ToolTip="この候補が得意とする用途です。"/>
-                                </DataGridTextColumn.Header>
-                            </DataGridTextColumn>
-                            <DataGridTextColumn Binding="{Binding Quantization}" Width="110">
-                                <DataGridTextColumn.Header>
-                                    <TextBlock Text="量子化" ToolTip="モデルを軽くする圧縮形式です。Q4は軽め、Q8やFP16は重めですが品質が落ちにくい傾向です。"/>
-                                </DataGridTextColumn.Header>
-                            </DataGridTextColumn>
-                            <DataGridTextColumn Binding="{Binding Score}" Width="82">
-                                <DataGridTextColumn.Header>
-                                    <TextBlock Text="スコア" ToolTip="品質、速度、メモリ適合、根拠を合わせた総合点です。"/>
-                                </DataGridTextColumn.Header>
-                            </DataGridTextColumn>
-                            <DataGridTemplateColumn Width="130" SortMemberPath="FitLabel">
-                                <DataGridTemplateColumn.Header>
-                                    <TextBlock Text="快適度" ToolTip="このPCでどれくらい無理なく動くかの目安です。緑=快適、橙=動くが重め、灰=要確認。"/>
-                                </DataGridTemplateColumn.Header>
-                                <DataGridTemplateColumn.CellTemplate>
-                                    <DataTemplate>
-                                        <Border CornerRadius="10" Padding="9,2" Margin="0,2" HorizontalAlignment="Left"
-                                                Background="{Binding FitKind, Converter={StaticResource FitBrush}, ConverterParameter=bg}">
+                        <DataGrid Grid.Column="0" ItemsSource="{Binding RecommendationRows}" SelectedItem="{Binding SelectedResult}">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Binding="{Binding RankLabel}" Width="92">
+                                    <DataGridTextColumn.Header>
+                                        <TextBlock Text="おすすめ" ToolTip="総合おすすめ順の順位です。最有力がいちばんのおすすめです。"/>
+                                    </DataGridTextColumn.Header>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn Binding="{Binding ModelName}" Width="*">
+                                    <DataGridTextColumn.Header>
+                                        <TextBlock Text="モデル" ToolTip="モデルの名前です。"/>
+                                    </DataGridTextColumn.Header>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn Binding="{Binding UseCaseLabel}" Width="110">
+                                    <DataGridTextColumn.Header>
+                                        <TextBlock Text="用途" ToolTip="この候補が得意とする用途です。"/>
+                                    </DataGridTextColumn.Header>
+                                </DataGridTextColumn>
+                                <DataGridTemplateColumn Width="124" SortMemberPath="FitLabel">
+                                    <DataGridTemplateColumn.Header>
+                                        <TextBlock Text="快適度" ToolTip="このPCでどれくらい無理なく動くかの目安です。緑=快適、橙=動くが重め、灰=要確認。"/>
+                                    </DataGridTemplateColumn.Header>
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Border CornerRadius="10" Padding="9,2" Margin="0,2" HorizontalAlignment="Left"
+                                                    Background="{Binding FitKind, Converter={StaticResource FitBrush}, ConverterParameter=bg}">
+                                                <StackPanel Orientation="Horizontal">
+                                                    <Ellipse Width="8" Height="8" Margin="0,0,6,0" VerticalAlignment="Center"
+                                                             Fill="{Binding FitKind, Converter={StaticResource FitBrush}, ConverterParameter=dot}"/>
+                                                    <TextBlock Text="{Binding FitLabel}" FontWeight="SemiBold"
+                                                               Foreground="{Binding FitKind, Converter={StaticResource FitBrush}, ConverterParameter=fg}"/>
+                                                </StackPanel>
+                                            </Border>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTextColumn Binding="{Binding SpeedWord}" Width="116" SortMemberPath="Speed">
+                                    <DataGridTextColumn.Header>
+                                        <TextBlock Text="速度の目安" ToolTip="返事の速さの目安です。詳しい数値は右の詳細に出ます。"/>
+                                    </DataGridTextColumn.Header>
+                                </DataGridTextColumn>
+                            </DataGrid.Columns>
+                        </DataGrid>
+
+                        <TextBlock Grid.Column="0" Visibility="{Binding ShowEmptyHint, Converter={StaticResource BoolToVis}}"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center"
+                                   MaxWidth="440" Foreground="{StaticResource Muted}" FontSize="14"
+                                   Text="「おすすめを探す」を押すと、このPCで使えるモデルが一覧で出ます。"/>
+
+                        <Border Grid.Column="1" Margin="12,0,0,0" Padding="16,14"
+                                Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="12"
+                                Visibility="{Binding HasResults, Converter={StaticResource BoolToVis}}">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                <StackPanel DataContext="{Binding SelectedResult}">
+                                    <Border Background="#E6F1FB" CornerRadius="10" Padding="9,2" HorizontalAlignment="Left">
+                                        <TextBlock Text="{Binding RankLabel}" Foreground="#0C447C" FontWeight="SemiBold" FontSize="12"/>
+                                    </Border>
+                                    <TextBlock Text="{Binding ModelName}" FontSize="20" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,8,0,0"/>
+                                    <TextBlock Text="{Binding UseCaseLabel}" Style="{StaticResource Caption}" Margin="0,2,0,0"/>
+                                    <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                                        <Border CornerRadius="10" Padding="10,3" Background="{Binding FitKind, Converter={StaticResource FitBrush}, ConverterParameter=bg}">
                                             <StackPanel Orientation="Horizontal">
-                                                <Ellipse Width="8" Height="8" Margin="0,0,6,0" VerticalAlignment="Center"
-                                                         Fill="{Binding FitKind, Converter={StaticResource FitBrush}, ConverterParameter=dot}"/>
-                                                <TextBlock Text="{Binding FitLabel}" FontWeight="SemiBold"
-                                                           Foreground="{Binding FitKind, Converter={StaticResource FitBrush}, ConverterParameter=fg}"/>
+                                                <Ellipse Width="9" Height="9" Margin="0,0,6,0" VerticalAlignment="Center" Fill="{Binding FitKind, Converter={StaticResource FitBrush}, ConverterParameter=dot}"/>
+                                                <TextBlock Text="{Binding FitLabel}" FontWeight="SemiBold" Foreground="{Binding FitKind, Converter={StaticResource FitBrush}, ConverterParameter=fg}"/>
                                             </StackPanel>
                                         </Border>
-                                    </DataTemplate>
-                                </DataGridTemplateColumn.CellTemplate>
-                            </DataGridTemplateColumn>
-                            <DataGridTextColumn Binding="{Binding Memory}" Width="112">
-                                <DataGridTextColumn.Header>
-                                    <TextBlock Text="必要メモリ" ToolTip="モデルを動かすために必要なGPUメモリの目安です。"/>
-                                </DataGridTextColumn.Header>
-                            </DataGridTextColumn>
-                            <DataGridTextColumn Binding="{Binding SpeedWord}" Width="120" SortMemberPath="Speed">
-                                <DataGridTextColumn.Header>
-                                    <TextBlock Text="速度の目安" ToolTip="返事の速さの目安です。「とても速い」「普段使いに十分」「ややゆっくり」で表します。正確な数値は行を選ぶと下に出ます。"/>
-                                </DataGridTextColumn.Header>
-                            </DataGridTextColumn>
-                            <DataGridTextColumn Binding="{Binding EvidenceLabel}" Width="*">
-                                <DataGridTextColumn.Header>
-                                    <TextBlock Text="根拠" ToolTip="内蔵ベンチ、近いモデルからの推定、自己申告などの違いです。行を選ぶと下の詳細欄にスコアと種類が出ます。"/>
-                                </DataGridTextColumn.Header>
-                            </DataGridTextColumn>
-                            <DataGridTextColumn Binding="{Binding Published}" Width="104">
-                                <DataGridTextColumn.Header>
-                                    <TextBlock Text="公開日" ToolTip="モデルが公開された日です。"/>
-                                </DataGridTextColumn.Header>
-                            </DataGridTextColumn>
-                        </DataGrid.Columns>
-                    </DataGrid>
-
-                    <TextBlock Grid.Row="3" Visibility="{Binding ShowEmptyHint, Converter={StaticResource BoolToVis}}"
-                               HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center"
-                               MaxWidth="440" Foreground="{StaticResource Muted}" FontSize="14"
-                               Text="「おすすめを探す」を押すと、このPCで使えるモデルが一覧で出ます。"/>
-
-                    <Border Grid.Row="4" Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,12,0,0">
-                        <TextBox Text="{Binding SelectedDetails, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" BorderThickness="0" Background="Transparent" FontFamily="Meiryo UI"/>
-                    </Border>
+                                        <Border CornerRadius="10" Padding="10,3" Margin="8,0,0,0" Background="#EFEFF0">
+                                            <TextBlock Text="{Binding SpeedWord}" FontWeight="SemiBold" Foreground="#3A3A3C"/>
+                                        </Border>
+                                    </StackPanel>
+                                    <TextBlock Text="{Binding WhyLine}" Style="{StaticResource Caption}" Margin="0,10,0,0"/>
+                                    <Border BorderBrush="{StaticResource Line}" BorderThickness="0,1,0,0" Margin="0,12,0,12"/>
+                                    <TextBox Text="{Binding Details}" IsReadOnly="True" TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Disabled" BorderThickness="0" Background="Transparent" FontFamily="Meiryo UI"/>
+                                </StackPanel>
+                            </ScrollViewer>
+                        </Border>
+                    </Grid>
                 </Grid>
             </TabItem>
 
