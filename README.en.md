@@ -1,98 +1,145 @@
 # whichllm GUI
 
-A Windows 10 / 11 GUI app for choosing a local LLM that fits your PC. It looks at your CPU, RAM, GPU, and VRAM, then ranks models by fit, speed, and evidence.
+**A Windows app that reads your PC's specs and tells you which local LLMs are likely to run well on it.**
+No Python install required — just unzip and launch.
 
-[日本語 README](README.md)
+[日本語 README](./README.md)
 
-![whichllm GUI English screenshot](docs/images/whichllm-gui-en.png)
+![whichllm GUI (English UI)](./docs/images/whichllm-gui-en.png)
 
-## What Is This?
+---
 
-whichllm GUI helps you decide which local LLM to try before you set up a runtime. It answers practical questions like:
+## What is this?
 
-- Which models are likely to run on this PC?
-- Will the model fit in GPU memory?
-- What changes if I upgrade the GPU?
-- What Python snippet should I start from?
+You want to try local LLMs (AI models that run on your own PC), but you're not sure which model to pick or whether your machine can handle it. This tool helps with exactly that.
 
-It intentionally does not run, download, or chat with models.
+It auto-detects your CPU, RAM, GPU, and VRAM, then lists the models likely to run comfortably on your PC — with **use case, fit, speed, and the evidence behind each rating**.
 
-## Quick Start
+### What it does
 
-1. Download `whichllm-gui-v0.4.1-win-x64.zip` from Releases.
-2. Extract the ZIP anywhere.
-3. Run `WhichLlm.Gui.exe`.
-4. Press `Find Recommendations` on the first screen.
+- Find models that suit your PC (`Recommend`)
+- Review your detected hardware (`This PC`)
+- Estimate required memory per quantization for a given model (`Plan`)
+- Compare how a GPU upgrade would change things (`Upgrade compare`)
+- Generate code to run a chosen model (`Snippet`)
 
-Python is not required. The release ZIP is a self-contained `win-x64` build.
+### What it deliberately doesn't do
 
-## Main Views
+This app **does not download or run models**, and there's no chat UI.
+It focuses on one thing: choosing before you run. How to actually run a model is covered [below](#after-you-choose-how-do-you-run-it).
 
-- `Recommendations`: ranks models for this PC with use case, fit, speed, and evidence.
-- `This PC`: shows detected CPU, RAM, GPU, VRAM, and free disk space.
-- `Plan`: estimates required memory for a selected model and quantization.
-- `Upgrade Compare`: compares candidate GPUs and the expected best model for each.
-- `Snippet`: generates Python code and a `uv run --no-project ...` command.
-- `Settings`: shows cache path, Hugging Face endpoint, and display language.
+---
 
-## Reading Recommendations
+## Getting it running (3 steps)
 
-- `Use Case`: everyday use, chat, coding, reasoning/math, images, or search/classification.
-- `Fit`: `Comfortable` means the model should fit in GPU memory. `Runs, but heavy` means it may spill from GPU memory into CPU/RAM.
-- `Speed`: a plain-language speed estimate.
-- `Evidence`: distinguishes direct, variant, base_model, line_interp, self_reported, and none, then discounts weaker evidence by confidence.
+### 1. Download
 
-## Key Features
+Grab `whichllm-gui-vX.Y.Z-win-x64.zip` from the [latest release](https://github.com/Meistertech-JP/whichllm-GUI/releases/latest).
+It's a self-contained build for Windows 10 / 11 (64-bit), so **you don't need to install Python or .NET separately**.
 
-- Benchmark evidence is resolved in this order: direct, variant, base_model, line_interp, then self_reported.
-- Benchmark data uses layered sources: LiveBench, Artificial Analysis, Aider, Open LLM Leaderboard, and Chatbot Arena. Frozen sources are capped, and older lineages are demoted.
-- Hugging Face fetching checks popular models, recently updated GGUF models, and trending models.
-- Benchmark inheritance is avoided when the model differs by more than 2x in parameter count, including draft, MTP, and fork-like derivatives.
-- Compatibility notes cover NVIDIA Compute Capability and AMD/Apple/Intel OS/backend mismatches.
-- Japanese / English display switching is supported, and the app remembers the last selected display language on next launch.
-- GPU suggestions are sorted by hardware generation, and `QAT` is treated as real only when the model variant or repo/file name actually indicates QAT.
+### 2. Unzip and launch
 
-## Hardware Detection
+Extract the ZIP anywhere and double-click `WhichLlm.Gui.exe`.
 
-GPU detection tries:
+> **If you see "Windows protected your PC"**
+> This app isn't code-signed, so Windows SmartScreen may warn you on first launch. To run it after reviewing what it is, click **"More info" → "Run anyway"**.
+> If you'd rather verify the download first, see "Verifying the download" below.
 
-- NVIDIA: `nvidia-smi`
-- AMD Radeon: `%HIP_PATH%\bin\hipInfo.exe`
-- Intel Arc and similar: `xpu-smi`
-- Fallback: Windows CIM/WMI and registry data
+### 3. Just launch — recommendations appear automatically
 
-If automatic detection is wrong, you can manually override VRAM and bandwidth in the app.
+On launch, hardware detection runs, and once it finishes **the list of models that suit your PC appears automatically**. You don't need to press anything. That's it.
 
-## Data and Cache
+### Verifying the download (optional)
 
-Model metadata is fetched from the Hugging Face API. If `HF_ENDPOINT` is set, the app uses that endpoint.
+Each release ships a SHA256 checksum for its ZIP. If you want to confirm the file isn't corrupted or tampered with, verify it in PowerShell:
 
-The fetcher checks popular models, recently updated GGUF models, and trending models.
+```powershell
+Get-FileHash .\whichllm-gui-vX.Y.Z-win-x64.zip -Algorithm SHA256
+```
 
-Benchmark data is merged in layers:
+If the printed value matches the checksum listed on the release, you're good.
 
-- current: LiveBench, Artificial Analysis, Aider
-- frozen: Open LLM Leaderboard v2, Chatbot Arena ELO
-- fallback: a minimal seed only when live sources are unavailable
+---
 
-Frozen-only entries from older model lineages are demoted so stale leaderboard scores do not overtake newer families.
+## Reading the results (Recommend screen)
 
-If neither internet access nor an existing cache is available, the app uses a minimal fallback list of common small and mid-sized models so the first screen is still useful.
+Read the `Recommend` list along these axes:
 
-Cache location:
+- **Use case**: everyday / chat / programming / logic & math / image / search & classification. Only models that fit your goal remain.
+- **Fit**:
+  - `Comfortable` … expected to fit within GPU memory. Runs most smoothly.
+  - `Runs but heavy` … expected to spill out of the GPU and also use CPU/RAM. It runs, but slower.
+- **Speed estimate**: a rough sense of whether it's fine for everyday use or very fast.
+- **Evidence**: distinguishes what each rating is based on (a real measurement vs. an estimate from a nearby lineage) and adjusts the score by confidence.
 
-```text
+When in doubt, start with a model that's both `Comfortable` and matches your use case.
+
+---
+
+## After you choose, how do you run it?
+
+This app doesn't run models, so you run your chosen model with a separate tool.
+
+- **Want the easy path**: apps like [Ollama](https://ollama.com) or [LM Studio](https://lmstudio.ai) let you run models with little or no command-line or code.
+- **Want to run it in code**: the `Snippet` tab generates Python code and a `uv run --no-project ...` command for your chosen model. Copy and use it as-is.
+
+So the flow is: decide *what* to run in whichllm GUI, then actually run it with one of the above.
+
+---
+
+## The tabs
+
+| Tab | What it does |
+| --- | --- |
+| `Recommend` | Lists models that suit this PC |
+| `This PC` | Shows detected CPU / RAM / GPU / VRAM / free disk |
+| `Plan` | Estimates required memory per quantization for a model |
+| `Upgrade compare` | Compares top models and gains per GPU candidate |
+| `Snippet` | Generates Python code/commands to run a model |
+| `Settings` | Change cache location, Hugging Face endpoint, and language |
+
+---
+
+## Troubleshooting
+
+- **GPU not detected / VRAM looks wrong**
+  If auto-detection fails, you can type VRAM and bandwidth manually on the `This PC` screen and estimate from there.
+  GPU detection is tried in this order: `nvidia-smi` (NVIDIA) → `hipInfo.exe` (AMD) → `xpu-smi` (Intel) → Windows WMI/registry.
+- **You have multiple GPUs**
+  All detected GPUs are shown, and you can choose the "GPU group" used to split a single model. Mixed-generation or mixed-architecture GPUs are **not** treated as simple combined VRAM and judged "runnable."
+- **No internet / first launch**
+  When neither live fetch nor cache is available, a minimal set of common small-to-mid models is shown so the screen is never empty.
+- **Change language / clear cache**
+  Use the `Settings` tab to switch Japanese / English and check the cache location.
+
+---
+
+## How it works (data and cache)
+
+Model info is fetched from the Hugging Face API. If the `HF_ENDPOINT` environment variable is set, that endpoint is used. Beyond popularity, recently updated GGUF models and trending models are also picked up.
+
+Benchmark info is layered across several sources:
+
+- **current**: LiveBench / Artificial Analysis / Aider
+- **frozen**: Open LLM Leaderboard v2 / Chatbot Arena ELO
+- **fallback**: a minimal seed for when all live fetches fail
+
+Models that exist only in frozen sources have their scores decayed by how old their lineage is, to avoid overrating them.
+
+Cache location and lifetimes:
+
+```
 %LocalAppData%\whichllm-gui\cache
 ```
 
-Cache TTL:
+- Model info: 6 hours
+- Benchmark info: 24 hours
 
-- Models: 6 hours
-- Benchmarks: 24 hours
+---
 
-## Development
+## For developers
 
-Requires the .NET SDK.
+Building requires the .NET SDK.
 
 ```powershell
 dotnet restore
@@ -103,17 +150,21 @@ dotnet publish src\WhichLlm.Gui\WhichLlm.Gui.vbproj -c Release -r win-x64 --self
 
 Publish output:
 
-```text
+```
 src\WhichLlm.Gui\bin\Release\net10.0-windows\win-x64\publish\
 ```
 
-## Credits and License
+See [Releases](https://github.com/Meistertech-JP/whichllm-GUI/releases) for per-version changes.
 
-whichllm GUI itself is released under the MIT License. See [LICENSE](LICENSE).
+---
+
+## License and credits
+
+whichllm GUI itself is released under the MIT License. See [LICENSE](./LICENSE) for details.
 
 This GUI is inspired by:
 
-- whichllm: https://github.com/Andyyyy64/whichllm
-- llmfit: https://github.com/AlexsJones/llmfit
+- whichllm: <https://github.com/Andyyyy64/whichllm>
+- llmfit: <https://github.com/AlexsJones/llmfit>
 
-See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for upstream copyright notices.
+For the copyright notices of the referenced projects, see [THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md).
