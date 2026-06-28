@@ -42,21 +42,15 @@ Python is not required. The release ZIP is a self-contained `win-x64` build.
 - `Speed`: a plain-language speed estimate.
 - `Evidence`: distinguishes direct, variant, base_model, line_interp, self_reported, and none, then discounts weaker evidence by confidence.
 
-## What's New in v0.4.0
+## Key Features
 
-- Added benchmark evidence resolution closer to the CLI: direct, variant, base_model, line_interp, then self_reported.
-- Added layered benchmark sources: LiveBench, Artificial Analysis, Aider, Open LLM Leaderboard, and Chatbot Arena. Frozen sources are capped and older lineages are demoted.
-- Hugging Face fetching now includes recently updated GGUF models and trending models, not only download-sorted lists.
-- Rejects benchmark inheritance when the model differs by more than 2x in parameter count, including draft, MTP, and fork-like derivatives.
-- Adds compatibility warnings for NVIDIA Compute Capability and AMD/Apple/Intel OS/backend mismatches.
-
-## What's New in v0.3.0
-
-- Added Japanese / English display switching.
-- Sorted GPU suggestions by hardware generation.
-- Treats `QAT` as real only when the model variant or repo/file name actually indicates QAT.
-- Fixed clipping in the details pane by wrapping longer text.
-- Added startup hardening for Windows environments that do not pass `SystemRoot` / `WINDIR` cleanly.
+- Benchmark evidence is resolved in this order: direct, variant, base_model, line_interp, then self_reported.
+- Benchmark data uses layered sources: LiveBench, Artificial Analysis, Aider, Open LLM Leaderboard, and Chatbot Arena. Frozen sources are capped, and older lineages are demoted.
+- Hugging Face fetching checks popular models, recently updated GGUF models, and trending models.
+- Benchmark inheritance is avoided when the model differs by more than 2x in parameter count, including draft, MTP, and fork-like derivatives.
+- Compatibility notes cover NVIDIA Compute Capability and AMD/Apple/Intel OS/backend mismatches.
+- Japanese / English display switching is supported, and the app remembers the last selected display language on next launch.
+- GPU suggestions are sorted by hardware generation, and `QAT` is treated as real only when the model variant or repo/file name actually indicates QAT.
 
 ## Hardware Detection
 

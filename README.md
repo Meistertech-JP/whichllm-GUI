@@ -37,21 +37,15 @@ Pythonは不要です。配布ZIPは `win-x64` 自己完結版です。
 - `速度の目安`: 普段使いに十分か、とても速いかをざっくり見ます。
 - `根拠`: direct / variant / base_model / line_interp / self_reported / none を区別し、信頼度でスコアを減衰します。
 
-## v0.4.0のポイント
+## 主な特徴
 
-- CLI版に近いベンチマーク解決を追加しました。direct、variant、base_model、line_interp、self_reported の順で根拠を探します。
-- ベンチ情報源を LiveBench / Artificial Analysis / Aider / Open LLM Leaderboard / Chatbot Arena の多層構成にしました。Open LLM Leaderboard と Arena は凍結ソースとして扱い、古い系譜には最新性の減衰をかけます。
-- Hugging Face取得で downloads だけでなく、最近更新されたGGUFとtrendingモデルも拾います。
-- 2倍を超えるパラメータ規模の乖離がある派生、draft、MTP、fork系のベンチ継承を拒否します。
-- NVIDIA Compute Capability、AMD/Apple/IntelのOS/backend互換性警告をメモリ判定のnotesに出します。
-
-## v0.3.0のポイント
-
-- 日本語 / English の表示切替を追加しました。
-- GPU候補を世代順に並べました。
-- `QAT` は実在するQAT variantまたはrepo/file名にQATがある場合だけ扱います。
-- 右側の詳細ペインで長文が折り返されるようにしました。
-- Windows環境変数が欠ける起動元でもWPFフォント初期化で落ちないよう補正しました。
+- ベンチマーク根拠は direct、variant、base_model、line_interp、self_reported の順で探します。
+- ベンチ情報源は LiveBench / Artificial Analysis / Aider / Open LLM Leaderboard / Chatbot Arena を使います。Open LLM Leaderboard と Arena は凍結ソースとして扱い、古い系譜には最新性の減衰をかけます。
+- Hugging Face取得では、人気順に加えて、最近更新されたGGUFモデルとtrendingモデルも確認します。
+- 2倍を超えるパラメータ規模の乖離がある派生、draft、MTP、fork系のベンチ継承を避けます。
+- NVIDIA Compute Capability、AMD/Apple/IntelのOS/backend互換性警告をメモリ判定のnotesに表示します。
+- 日本語 / English の表示切替に対応し、最後に選んだ表示言語を次回起動時にも使います。
+- GPU候補は世代順に並べ、`QAT` は実在するQAT variantまたはrepo/file名にQATがある場合だけ扱います。
 
 ## ハードウェア検出
 
