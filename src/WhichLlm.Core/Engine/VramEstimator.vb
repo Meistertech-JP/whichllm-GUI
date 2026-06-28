@@ -133,6 +133,7 @@ Namespace Engine
 
         Public Function ClassifyFit(requiredBytes As Long, hardware As HardwareInfo, options As RankingOptions) As FitDecision Implements IVramEstimator.ClassifyFit
             Dim decision As New FitDecision With {.VramRequiredBytes = requiredBytes}
+            decision.Notes.AddRange(CompatibilityWarnings(hardware))
             Dim ramBudget = If(hardware.RamBudgetBytes, Math.Max(0, hardware.AvailableRamBytes))
 
             If options.CpuOnly OrElse hardware.Gpus.Count = 0 Then
@@ -182,6 +183,70 @@ Namespace Engine
             decision.IsRunnable = False
             decision.Notes.Add("Required memory exceeds available GPU/RAM or disk budget.")
             Return decision
+        End Function
+
+        Private Shared Function CompatibilityWarnings(hardware As HardwareInfo) As IEnumerable(Of String)
+            Dim warnings As New List(Of String)
+            If hardware Is Nothing OrElse hardware.Gpus.Count = 0 Then Return warnings
+
+            Dim osKind = NormalizeOs(hardware.OsName)
+            Dim bestGpu = hardware.Gpus.
+                OrderByDescending(Function(g) Math.Max(0, g.EffectiveVramBytes)).
+                FirstOrDefault()
+            If bestGpu Is Nothing Then Return warnings
+
+            Dim vendor = If(bestGpu.Vendor, "").Trim().ToLowerInvariant()
+            If vendor = "nvidia" Then
+                Dim cc = ParseNvidiaComputeCapability(bestGpu.ComputeCapability)
+                If cc.HasValue AndAlso cc.Value < 5.0R Then
+                    warnings.Add($"Compute capability {bestGpu.ComputeCapability} is below minimum 5.0 for current Ollama/llama.cpp CUDA builds.")
+                End If
+                If IsVulkanOnlyGpu(bestGpu.Name) Then
+                    warnings.Add("Legacy Kepler GPU: modern CUDA builds no longer support this card; use a Vulkan backend where available.")
+                End If
+            End If
+
+            If vendor = "amd" AndAlso osKind <> "windows" AndAlso osKind <> "linux" Then
+                warnings.Add("ROCm GPU inference on AMD requires Linux; Windows users usually need Vulkan or DirectML backends.")
+            End If
+
+            If vendor = "apple" AndAlso osKind <> "darwin" Then
+                warnings.Add("Metal requires macOS for Apple Silicon inference.")
+            End If
+
+            If vendor = "intel" AndAlso osKind <> "windows" AndAlso osKind <> "linux" Then
+                warnings.Add("Intel GPU inference usually requires Windows or Linux Level Zero/oneAPI support.")
+            End If
+
+            Return warnings
+        End Function
+
+        Private Shared Function ParseNvidiaComputeCapability(value As String) As Double?
+            If String.IsNullOrWhiteSpace(value) Then Return Nothing
+            Dim match = System.Text.RegularExpressions.Regex.Match(value, "(\d+)(?:\.(\d+))?")
+            If Not match.Success Then Return Nothing
+            Dim major As Double
+            If Not Double.TryParse(match.Groups(1).Value, Globalization.NumberStyles.Float, Globalization.CultureInfo.InvariantCulture, major) Then Return Nothing
+            Dim minor = 0.0R
+            If match.Groups(2).Success Then
+                Double.TryParse(match.Groups(2).Value, Globalization.NumberStyles.Float, Globalization.CultureInfo.InvariantCulture, minor)
+            End If
+            Return major + minor / 10.0R
+        End Function
+
+        Private Shared Function NormalizeOs(osName As String) As String
+            Dim text = If(osName, "").ToLowerInvariant()
+            If text.Contains("win", StringComparison.Ordinal) Then Return "windows"
+            If text.Contains("darwin", StringComparison.Ordinal) OrElse text.Contains("mac", StringComparison.Ordinal) Then Return "darwin"
+            If text.Contains("linux", StringComparison.Ordinal) Then Return "linux"
+            If Environment.OSVersion.Platform = PlatformID.Win32NT Then Return "windows"
+            Return text
+        End Function
+
+        Private Shared Function IsVulkanOnlyGpu(name As String) As Boolean
+            Dim text = If(name, "").ToUpperInvariant()
+            Dim markers = New String() {"QUADRO K6000", "QUADRO K5200", "QUADRO K4200", "QUADRO K2200", "QUADRO K620", "QUADRO K420", "GTX 780", "GTX 770", "GTX 760"}
+            Return markers.Any(Function(marker) text.Contains(marker, StringComparison.Ordinal))
         End Function
 
         Private Structure KvShape

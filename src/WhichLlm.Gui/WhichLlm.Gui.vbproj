@@ -9,10 +9,10 @@
     <OptionExplicit>On</OptionExplicit>
     <LangVersion>latest</LangVersion>
     <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
-    <Version>0.3.0</Version>
-    <AssemblyVersion>0.3.0.0</AssemblyVersion>
-    <FileVersion>0.3.0.0</FileVersion>
-    <InformationalVersion>0.3.0</InformationalVersion>
+    <Version>0.4.0</Version>
+    <AssemblyVersion>0.4.0.0</AssemblyVersion>
+    <FileVersion>0.4.0.0</FileVersion>
+    <InformationalVersion>0.4.0</InformationalVersion>
   </PropertyGroup>
 
   <ItemGroup>

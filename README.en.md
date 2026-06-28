@@ -19,7 +19,7 @@ It intentionally does not run, download, or chat with models.
 
 ## Quick Start
 
-1. Download `whichllm-gui-v0.3.0-win-x64.zip` from Releases.
+1. Download `whichllm-gui-v0.4.0-win-x64.zip` from Releases.
 2. Extract the ZIP anywhere.
 3. Run `WhichLlm.Gui.exe`.
 4. Press `Find Recommendations` on the first screen.
@@ -40,7 +40,15 @@ Python is not required. The release ZIP is a self-contained `win-x64` build.
 - `Use Case`: everyday use, chat, coding, reasoning/math, images, or search/classification.
 - `Fit`: `Comfortable` means the model should fit in GPU memory. `Runs, but heavy` means it may spill from GPU memory into CPU/RAM.
 - `Speed`: a plain-language speed estimate.
-- `Evidence`: distinguishes built-in benchmark, similar-model estimate, self-reported results, and missing evidence.
+- `Evidence`: distinguishes direct, variant, base_model, line_interp, self_reported, and none, then discounts weaker evidence by confidence.
+
+## What's New in v0.4.0
+
+- Added benchmark evidence resolution closer to the CLI: direct, variant, base_model, line_interp, then self_reported.
+- Added layered benchmark sources: LiveBench, Artificial Analysis, Aider, Open LLM Leaderboard, and Chatbot Arena. Frozen sources are capped and older lineages are demoted.
+- Hugging Face fetching now includes recently updated GGUF models and trending models, not only download-sorted lists.
+- Rejects benchmark inheritance when the model differs by more than 2x in parameter count, including draft, MTP, and fork-like derivatives.
+- Adds compatibility warnings for NVIDIA Compute Capability and AMD/Apple/Intel OS/backend mismatches.
 
 ## What's New in v0.3.0
 
@@ -64,6 +72,18 @@ If automatic detection is wrong, you can manually override VRAM and bandwidth in
 ## Data and Cache
 
 Model metadata is fetched from the Hugging Face API. If `HF_ENDPOINT` is set, the app uses that endpoint.
+
+The fetcher checks popular models, recently updated GGUF models, and trending models.
+
+Benchmark data is merged in layers:
+
+- current: LiveBench, Artificial Analysis, Aider
+- frozen: Open LLM Leaderboard v2, Chatbot Arena ELO
+- fallback: a minimal seed only when live sources are unavailable
+
+Frozen-only entries from older model lineages are demoted so stale leaderboard scores do not overtake newer families.
+
+If neither internet access nor an existing cache is available, the app uses a minimal fallback list of common small and mid-sized models so the first screen is still useful.
 
 Cache location:
 

@@ -22,12 +22,20 @@ Namespace Engine
 
         Public Function RankAsync(models As IEnumerable(Of ModelInfo), hardware As HardwareInfo, benchmarks As Dictionary(Of String, BenchmarkEvidence), options As RankingOptions, Optional cancellationToken As CancellationToken = Nothing) As Task(Of RankingResult) Implements IRanker.RankAsync
             Dim rows As New List(Of RankedModel)
+            Dim modelList = models.ToList()
+            Dim familyDominantParams = BuildFamilyDominantParams(modelList)
 
-            For Each model In models
+            For Each model In modelList
                 cancellationToken.ThrowIfCancellationRequested()
                 If Not PassesProfile(model, options.Profile) Then Continue For
                 If Not PassesUseCase(model, options.UseCase) Then Continue For
                 If options.MinParamsB.HasValue AndAlso model.ParameterCountB < options.MinParamsB.Value Then Continue For
+
+                Dim familyKey = _grouper.FamilyKey(model)
+                Dim dominantParams As Double? = Nothing
+                If familyDominantParams.ContainsKey(familyKey) Then dominantParams = familyDominantParams(familyKey)
+                Dim evidence = BenchmarkResolver.Resolve(model, benchmarks, options.Evidence, dominantParams)
+                If Not BenchmarkResolver.EvidenceAllowed(evidence.Source, options.Evidence) Then Continue For
 
                 For Each modelVariant In BuildVariants(model, options)
                     Dim required = _vram.EstimateRequiredBytes(model, modelVariant, options.ContextLength)
@@ -38,7 +46,6 @@ Namespace Engine
                     Dim speedEstimate = _speed.Estimate(model, modelVariant, fit, hardware)
                     If Not PassesSpeed(speedEstimate.TokPerSec, options) Then Continue For
 
-                    Dim evidence = ResolveBenchmark(model, benchmarks, options.Evidence)
                     Dim score = ComputeScore(model, modelVariant, evidence, fit, speedEstimate, options.UseCase)
                     rows.Add(New RankedModel With {
                         .Model = model,
@@ -79,6 +86,19 @@ Namespace Engine
             Dim result As New RankingResult With {.Hardware = hardware, .Models = bestByFamily}
             If bestByFamily.Count = 0 Then result.Warnings.Add("No runnable models matched the selected filters.")
             Return Task.FromResult(result)
+        End Function
+
+        Private Function BuildFamilyDominantParams(models As IEnumerable(Of ModelInfo)) As Dictionary(Of String, Double)
+            Dim byFamily As New Dictionary(Of String, ModelInfo)(StringComparer.OrdinalIgnoreCase)
+            For Each model In models
+                Dim familyKey = _grouper.FamilyKey(model)
+                Dim existing As ModelInfo = Nothing
+                If Not byFamily.TryGetValue(familyKey, existing) OrElse model.Downloads >= existing.Downloads Then
+                    byFamily(familyKey) = model
+                End If
+            Next
+
+            Return byFamily.ToDictionary(Function(pair) pair.Key, Function(pair) pair.Value.ParameterCountB, StringComparer.OrdinalIgnoreCase)
         End Function
 
         Private Shared Function BuildVariants(model As ModelInfo, options As RankingOptions) As IEnumerable(Of ModelVariant)
@@ -217,45 +237,6 @@ Namespace Engine
                     floor = Math.Max(floor, 30)
             End Select
             Return tokPerSec >= floor
-        End Function
-
-        Private Shared Function ResolveBenchmark(model As ModelInfo, benchmarks As Dictionary(Of String, BenchmarkEvidence), evidenceMode As String) As BenchmarkEvidence
-            Dim keys = New List(Of String) From {
-                Formatters.NormalizeModelName(model.RepoId),
-                Formatters.NormalizeModelName(model.DisplayName),
-                Formatters.NormalizeModelName(model.BaseModel)
-            }.Where(Function(k) Not String.IsNullOrWhiteSpace(k)).Distinct().ToList()
-
-            For Each key In keys
-                For Each pair In benchmarks
-                    If key.Contains(pair.Key, StringComparison.OrdinalIgnoreCase) OrElse pair.Key.Contains(key, StringComparison.OrdinalIgnoreCase) Then
-                        If EvidenceAllowed(pair.Value.Source, evidenceMode) Then
-                            Return CloneEvidence(pair.Value)
-                        End If
-                    End If
-                Next
-            Next
-
-            If model.EvalScore.HasValue AndAlso EvidenceAllowed("self_reported", evidenceMode) Then
-                Return New BenchmarkEvidence With {.Source = "self_reported", .Score = model.EvalScore.Value, .Confidence = 0.45R, .Status = "!sr", .Notes = "HuggingFace model-card evalResults only."}
-            End If
-
-            Return New BenchmarkEvidence With {.Source = "none", .Score = 0, .Confidence = 0, .Status = "?", .Notes = "No benchmark evidence."}
-        End Function
-
-        Private Shared Function EvidenceAllowed(source As String, mode As String) As Boolean
-            Select Case mode.ToLowerInvariant()
-                Case "strict"
-                    Return source.Equals("direct", StringComparison.OrdinalIgnoreCase)
-                Case "base"
-                    Return source.Equals("direct", StringComparison.OrdinalIgnoreCase) OrElse source.Equals("variant", StringComparison.OrdinalIgnoreCase) OrElse source.Equals("base_model", StringComparison.OrdinalIgnoreCase)
-                Case Else
-                    Return True
-            End Select
-        End Function
-
-        Private Shared Function CloneEvidence(value As BenchmarkEvidence) As BenchmarkEvidence
-            Return New BenchmarkEvidence With {.Source = value.Source, .Score = value.Score, .Confidence = value.Confidence, .Status = value.Status, .Notes = value.Notes}
         End Function
 
         Private Shared Function ComputeScore(model As ModelInfo, modelVariant As ModelVariant, evidence As BenchmarkEvidence, fit As FitDecision, speed As SpeedEstimate, requestedUseCase As String) As Double

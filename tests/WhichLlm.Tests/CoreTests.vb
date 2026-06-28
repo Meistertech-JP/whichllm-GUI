@@ -2,6 +2,9 @@ Option Strict On
 Option Explicit On
 
 Imports Microsoft.VisualStudio.TestTools.UnitTesting
+Imports System.Net
+Imports System.Net.Http
+Imports System.Text
 Imports WhichLlm.Core.Dto
 Imports WhichLlm.Core.Engine
 Imports WhichLlm.Core.Services
@@ -188,6 +191,20 @@ Namespace WhichLlm.Tests
         End Sub
 
         <TestMethod>
+        Public Sub VramEstimatorAddsCompatibilityWarningsForOldNvidiaComputeCapability()
+            Dim estimator As IVramEstimator = New VramEstimator()
+            Dim hardware = HardwareWithGpu("GTX 780", 3)
+            hardware.OsName = "Windows 11"
+            hardware.Gpus(0).ComputeCapability = "3.5"
+            Dim required = 1L * 1024 * 1024 * 1024
+
+            Dim fit = estimator.ClassifyFit(required, hardware, New RankingOptions())
+
+            Assert.IsTrue(fit.Notes.Any(Function(note) note.Contains("Compute capability", StringComparison.Ordinal)))
+            Assert.IsTrue(fit.Notes.Any(Function(note) note.Contains("Legacy Kepler", StringComparison.Ordinal)))
+        End Sub
+
+        <TestMethod>
         Public Sub QuantizationRulesTreatsQatAsKnownQuant()
             Assert.IsTrue(QuantizationRules.IsQat("QAT"))
             Assert.AreEqual(0.57R, QuantizationRules.BytesPerParam("QAT"), 0.0001R)
@@ -255,7 +272,7 @@ Namespace WhichLlm.Tests
                 TestModel("Qwen/Qwen3-14B", 14, "chat"),
                 TestModel("Qwen/Qwen3-8B", 8, "chat")
             }
-            Dim options = New RankingOptions With {.Profile = "general", .UseCase = "general", .Quant = "QAT", .Top = 5}
+            Dim options = New RankingOptions With {.Profile = "general", .UseCase = "general", .Quant = "QAT", .Evidence = "any", .Top = 5}
 
             Dim result = Await ranker.RankAsync(models, HardwareWithGpu("RTX 4090", 24), SeedBenchmarks(), options)
 
@@ -268,7 +285,7 @@ Namespace WhichLlm.Tests
             Dim model = TestModel("unsloth/gemma-4-26B-A4B-it-qat-GGUF", 26, "chat")
             model.Variants.Clear()
             model.Variants.Add(New ModelVariant With {.Quantization = "QAT", .FileName = "gemma-4-26B-A4B-it-qat-UD-Q4_K_XL.gguf", .RuntimeKind = "gguf"})
-            Dim options = New RankingOptions With {.Profile = "general", .UseCase = "general", .Quant = "QAT", .Top = 5}
+            Dim options = New RankingOptions With {.Profile = "general", .UseCase = "general", .Quant = "QAT", .Evidence = "any", .Top = 5}
 
             Dim result = Await ranker.RankAsync(New List(Of ModelInfo) From {model}, HardwareWithGpu("RTX 4090", 24), SeedBenchmarks(), options)
 
@@ -281,13 +298,138 @@ Namespace WhichLlm.Tests
             Dim ranker = BuildRanker()
             Dim model = TestModel("Qwen/Qwen3-8B", 8, "chat")
             model.Variants.Clear()
-            Dim options = New RankingOptions With {.Profile = "general", .UseCase = "general", .Quant = "Q5_0", .Top = 5}
+            Dim options = New RankingOptions With {.Profile = "general", .UseCase = "general", .Quant = "Q5_0", .Evidence = "any", .Top = 5}
 
             Dim result = Await ranker.RankAsync(New List(Of ModelInfo) From {model}, HardwareWithGpu("RTX 4090", 24), SeedBenchmarks(), options)
 
             Assert.AreEqual(1, result.Models.Count)
             Assert.AreEqual("Q5_0", result.Models(0).SelectedVariant.Quantization)
             Assert.IsTrue(result.Models(0).SelectedVariant.IsSynthetic)
+        End Function
+
+        <TestMethod>
+        Public Async Function RankingResolvesVariantBenchmarkEvidence() As Task
+            Dim ranker = BuildRanker()
+            Dim model = TestModel("Qwen/Qwen3-8B-GGUF", 8, "chat")
+            Dim benchmarks = New Dictionary(Of String, BenchmarkEvidence)(StringComparer.OrdinalIgnoreCase) From {
+                {"Qwen/Qwen3-8B", New BenchmarkEvidence With {.Source = "direct", .Score = 70, .Confidence = 1.0R}}
+            }
+
+            Dim result = Await ranker.RankAsync(New List(Of ModelInfo) From {model}, HardwareWithGpu("RTX 4090", 24), benchmarks, New RankingOptions With {.Evidence = "any"})
+
+            Assert.AreEqual(1, result.Models.Count)
+            Assert.AreEqual("variant", result.Models(0).Benchmark.Source)
+            Assert.AreEqual(0.55R, result.Models(0).Benchmark.Confidence, 0.001R)
+        End Function
+
+        <TestMethod>
+        Public Async Function RankingResolvesBaseModelBenchmarkEvidence() As Task
+            Dim ranker = BuildRanker()
+            Dim model = TestModel("some-org/custom-qwen3-8b", 8, "chat")
+            model.BaseModel = "Qwen/Qwen3-8B"
+            Dim benchmarks = New Dictionary(Of String, BenchmarkEvidence)(StringComparer.OrdinalIgnoreCase) From {
+                {"Qwen/Qwen3-8B", New BenchmarkEvidence With {.Source = "direct", .Score = 70, .Confidence = 1.0R}}
+            }
+
+            Dim result = Await ranker.RankAsync(New List(Of ModelInfo) From {model}, HardwareWithGpu("RTX 4090", 24), benchmarks, New RankingOptions With {.Evidence = "any"})
+
+            Assert.AreEqual(1, result.Models.Count)
+            Assert.AreEqual("base_model", result.Models(0).Benchmark.Source)
+            Assert.AreEqual(0.6R, result.Models(0).Benchmark.Confidence, 0.001R)
+        End Function
+
+        <TestMethod>
+        Public Async Function RankingGeneratesLineInterpolationBenchmarkEvidence() As Task
+            Dim ranker = BuildRanker()
+            Dim model = TestModel("Qwen/Qwen3-10B", 10, "chat")
+            Dim benchmarks = New Dictionary(Of String, BenchmarkEvidence)(StringComparer.OrdinalIgnoreCase) From {
+                {"Qwen/Qwen3-8B", New BenchmarkEvidence With {.Source = "direct", .Score = 60, .Confidence = 1.0R}},
+                {"Qwen/Qwen3-14B", New BenchmarkEvidence With {.Source = "direct", .Score = 70, .Confidence = 1.0R}}
+            }
+
+            Dim result = Await ranker.RankAsync(New List(Of ModelInfo) From {model}, HardwareWithGpu("RTX 4090", 24), benchmarks, New RankingOptions With {.Evidence = "base"})
+
+            Assert.AreEqual(1, result.Models.Count)
+            Assert.AreEqual("line_interp", result.Models(0).Benchmark.Source)
+            Assert.IsTrue(result.Models(0).Benchmark.Score > 60)
+            Assert.IsTrue(result.Models(0).Benchmark.Confidence > 0)
+        End Function
+
+        <TestMethod>
+        Public Async Function RankingRejectsBenchmarkInheritanceWhenParametersDifferByMoreThanTwoX() As Task
+            Dim ranker = BuildRanker()
+            Dim model = TestModel("community/qwen3-mtp-draft-6b", 6, "chat")
+            model.BaseModel = "Qwen/Qwen3-158B-A22B"
+            Dim benchmarks = New Dictionary(Of String, BenchmarkEvidence)(StringComparer.OrdinalIgnoreCase) From {
+                {"Qwen/Qwen3-158B-A22B", New BenchmarkEvidence With {.Source = "direct", .Score = 95, .Confidence = 1.0R}}
+            }
+
+            Dim result = Await ranker.RankAsync(New List(Of ModelInfo) From {model}, HardwareWithGpu("RTX 4090", 24), benchmarks, New RankingOptions With {.Evidence = "any"})
+
+            Assert.AreEqual(1, result.Models.Count)
+            Assert.AreEqual("none", result.Models(0).Benchmark.Source)
+            Assert.AreEqual(0, result.Models(0).Benchmark.Confidence)
+        End Function
+
+        <TestMethod>
+        Public Sub ModelGrouperDoesNotGroupMtpDraftWithLargeBaseModel()
+            Dim grouper As IModelGrouper = New ModelGrouper()
+            Dim model = TestModel("community/qwen3-mtp-draft-6b", 6, "chat")
+            model.BaseModel = "Qwen/Qwen3-158B-A22B"
+
+            Dim key = grouper.FamilyKey(model)
+
+            Assert.AreEqual(Formatters.NormalizeModelName(model.RepoId), key)
+        End Sub
+
+        <TestMethod>
+        Public Async Function BenchmarkProviderKeepsCurrentFallbacksWhenLiveHttpSourcesFail() As Task
+            Dim cache = New FakeBenchmarkCache(False)
+            Dim client = New HttpClient(New StaticHttpHandler(HttpStatusCode.InternalServerError, ""))
+            Dim provider As IBenchmarkProvider = New BenchmarkProvider(cache, client)
+
+            Dim benchmarks = Await provider.LoadBenchmarksAsync(True)
+
+            Assert.IsTrue(benchmarks.Count > 0)
+            Assert.IsTrue(benchmarks.Values.Any(Function(e) e.BenchmarkTier = "current"))
+        End Function
+
+        <TestMethod>
+        Public Async Function BenchmarkProviderRefreshesOldUntieredCacheSchema() As Task
+            Dim cache = New FakeBenchmarkCache(True)
+            cache.SetValue(New Dictionary(Of String, BenchmarkEvidence)(StringComparer.OrdinalIgnoreCase) From {
+                {"qwen3", New BenchmarkEvidence With {.Source = "direct", .Score = 87, .Confidence = 1.0R}}
+            })
+            Dim client = New HttpClient(New StaticHttpHandler(HttpStatusCode.InternalServerError, ""))
+            Dim provider As IBenchmarkProvider = New BenchmarkProvider(cache, client)
+
+            Dim benchmarks = Await provider.LoadBenchmarksAsync(False)
+
+            Assert.IsTrue(benchmarks.Values.Any(Function(e) Not String.IsNullOrWhiteSpace(e.BenchmarkTier)))
+            Assert.IsFalse(benchmarks.ContainsKey("qwen3"))
+        End Function
+
+
+        <TestMethod>
+        Public Async Function HuggingFaceClientFetchesRecentlyUpdatedAndTrendingModels() As Task
+            Dim handler = New RecordingHttpHandler("[]")
+            Dim client = New HuggingFaceClient(New HttpClient(handler))
+
+            Await client.FetchModelsAsync("general", "general", True)
+
+            Assert.IsTrue(handler.RequestedUrls.Any(Function(url) url.Contains("sort=lastModified", StringComparison.Ordinal)))
+            Assert.IsTrue(handler.RequestedUrls.Any(Function(url) url.Contains("sort=trending", StringComparison.Ordinal)))
+        End Function
+
+        <TestMethod>
+        Public Async Function ModelFetcherUsesFallbackModelsWhenCacheAndNetworkAreUnavailable() As Task
+            Dim fetcher As IModelFetcher = New ModelFetcher(New FakeModelCache(False), New FailingHuggingFaceClient())
+
+            Dim models = Await fetcher.LoadModelsAsync(New RankingOptions())
+
+            Assert.IsTrue(models.Count > 0)
+            Assert.IsTrue(models.Any(Function(model) model.Tags.Contains("whichllm-gui-fallback")))
+            Assert.IsTrue(models.Any(Function(model) model.RepoId = "Qwen/Qwen3-8B"))
         End Function
 
         <TestMethod>
@@ -429,11 +571,109 @@ Namespace WhichLlm.Tests
             End Function
         End Class
 
+        Private Class FakeModelCache
+            Implements IModelCache
+
+            Private ReadOnly _fresh As Boolean
+            Private _models As New List(Of ModelInfo)
+
+            Public Sub New(fresh As Boolean)
+                _fresh = fresh
+            End Sub
+
+            Public Function LoadAsync(Optional cancellationToken As Threading.CancellationToken = Nothing) As Task(Of List(Of ModelInfo)) Implements IModelCache.LoadAsync
+                Return Task.FromResult(_models)
+            End Function
+
+            Public Function SaveAsync(models As IEnumerable(Of ModelInfo), Optional cancellationToken As Threading.CancellationToken = Nothing) As Task Implements IModelCache.SaveAsync
+                _models = models.ToList()
+                Return Task.CompletedTask
+            End Function
+
+            Public Function IsFresh() As Boolean Implements IModelCache.IsFresh
+                Return _fresh
+            End Function
+        End Class
+
+        Private Class FailingHuggingFaceClient
+            Implements IHuggingFaceClient
+
+            Public Function FetchModelsAsync(profile As String, useCase As String, refresh As Boolean, Optional cancellationToken As Threading.CancellationToken = Nothing) As Task(Of List(Of ModelInfo)) Implements IHuggingFaceClient.FetchModelsAsync
+                Throw New HttpRequestException("offline")
+            End Function
+        End Class
+
         Private Class FakeBenchmarkProvider
             Implements IBenchmarkProvider
 
             Public Function LoadBenchmarksAsync(refresh As Boolean, Optional cancellationToken As Threading.CancellationToken = Nothing) As Task(Of Dictionary(Of String, BenchmarkEvidence)) Implements IBenchmarkProvider.LoadBenchmarksAsync
                 Return Task.FromResult(New Dictionary(Of String, BenchmarkEvidence)(StringComparer.OrdinalIgnoreCase))
+            End Function
+        End Class
+
+        Private Class FakeBenchmarkCache
+            Implements IBenchmarkCache
+
+            Private ReadOnly _fresh As Boolean
+            Private _value As Dictionary(Of String, BenchmarkEvidence) = New Dictionary(Of String, BenchmarkEvidence)(StringComparer.OrdinalIgnoreCase)
+
+            Public Sub New(fresh As Boolean)
+                _fresh = fresh
+            End Sub
+
+            Public Function LoadAsync(Optional cancellationToken As Threading.CancellationToken = Nothing) As Task(Of Dictionary(Of String, BenchmarkEvidence)) Implements IBenchmarkCache.LoadAsync
+                Return Task.FromResult(_value)
+            End Function
+
+            Public Function SaveAsync(evidence As Dictionary(Of String, BenchmarkEvidence), Optional cancellationToken As Threading.CancellationToken = Nothing) As Task Implements IBenchmarkCache.SaveAsync
+                _value = evidence
+                Return Task.CompletedTask
+            End Function
+
+            Public Function IsFresh() As Boolean Implements IBenchmarkCache.IsFresh
+                Return _fresh
+            End Function
+
+            Public Sub SetValue(value As Dictionary(Of String, BenchmarkEvidence))
+                _value = value
+            End Sub
+        End Class
+
+        Private Class StaticHttpHandler
+            Inherits HttpMessageHandler
+
+            Private ReadOnly _statusCode As HttpStatusCode
+            Private ReadOnly _content As String
+
+            Public Sub New(statusCode As HttpStatusCode, content As String)
+                _statusCode = statusCode
+                _content = content
+            End Sub
+
+            Protected Overrides Function SendAsync(request As HttpRequestMessage, cancellationToken As Threading.CancellationToken) As Task(Of HttpResponseMessage)
+                Return Task.FromResult(New HttpResponseMessage(_statusCode) With {
+                    .Content = New StringContent(_content, Encoding.UTF8, "application/json")
+                })
+            End Function
+        End Class
+
+        Private Class RecordingHttpHandler
+            Inherits HttpMessageHandler
+
+            Private ReadOnly _content As String
+
+            Public Sub New(content As String)
+                _content = content
+                RequestedUrls = New List(Of String)()
+            End Sub
+
+            Public ReadOnly Property RequestedUrls As List(Of String)
+
+            Protected Overrides Function SendAsync(request As HttpRequestMessage, cancellationToken As Threading.CancellationToken) As Task(Of HttpResponseMessage)
+                RequestedUrls.Add(request.RequestUri.ToString())
+                Return Task.FromResult(New HttpResponseMessage(HttpStatusCode.OK) With {
+                    .Content = New StringContent(_content, Encoding.UTF8, "application/json")
+                })
             End Function
         End Class
     End Class

@@ -33,7 +33,10 @@ Namespace Services
                 $"{_endpoint}/api/models?search=Gemma%20GGUF&sort=downloads&direction=-1&limit=60&full=true",
                 $"{_endpoint}/api/models?search=Mistral%20GGUF&sort=downloads&direction=-1&limit=60&full=true",
                 $"{_endpoint}/api/models?search=DeepSeek%20GGUF&sort=downloads&direction=-1&limit=60&full=true",
-                $"{_endpoint}/api/models?search=Phi%20GGUF&sort=downloads&direction=-1&limit=60&full=true"
+                $"{_endpoint}/api/models?search=Phi%20GGUF&sort=downloads&direction=-1&limit=60&full=true",
+                $"{_endpoint}/api/models?pipeline_tag=text-generation&filter=gguf&sort=lastModified&direction=-1&limit=200&full=true",
+                $"{_endpoint}/api/models?pipeline_tag=text-generation&sort=trending&direction=-1&limit=120&full=true",
+                $"{_endpoint}/api/models?pipeline_tag=text-generation&filter=gguf&sort=trending&direction=-1&limit=120&full=true"
             }
 
             If String.Equals(profile, "vision", StringComparison.OrdinalIgnoreCase) OrElse String.Equals(profile, "any", StringComparison.OrdinalIgnoreCase) OrElse String.Equals(useCase, "multimodal", StringComparison.OrdinalIgnoreCase) Then
@@ -121,6 +124,7 @@ Namespace Services
                 .Downloads = ReadLong(item, "downloads"),
                 .Likes = ReadLong(item, "likes"),
                 .PublishedDate = ReadDate(item, "createdAt"),
+                .UpdatedDate = ReadDate(item, "lastModified"),
                 .BaseModel = baseModel,
                 .PipelineTag = ReadString(item, "pipeline_tag"),
                 .UseCase = InferUseCase(id, tags, ReadString(item, "pipeline_tag")),

@@ -182,11 +182,13 @@ Namespace Models
         Private Shared Function FriendlyEvidence(benchmark As BenchmarkEvidence) As String
             Select Case If(benchmark.Source, "").Trim().ToLowerInvariant()
                 Case "direct"
-                    Return L("内蔵ベンチ", "Built-in benchmark")
+                    Return L("ベンチマーク", "Benchmark")
                 Case "base_model"
                     Return L("ベースモデル", "Base model")
                 Case "variant"
                     Return L("近いモデルから推定", "Estimated from similar model")
+                Case "line_interp"
+                    Return L("同系列から推定", "Estimated from same line")
                 Case "self_reported"
                     Return L("自己申告", "Self-reported")
                 Case "none"
@@ -199,11 +201,13 @@ Namespace Models
         Private Shared Function FriendlyEvidenceSource(source As String) As String
             Select Case If(source, "").Trim().ToLowerInvariant()
                 Case "direct"
-                    Return L("同系モデルのベンチマーク", "Benchmark for the same model family")
+                    Return L("同一モデルのベンチマーク", "Benchmark for the same model")
                 Case "base_model"
                     Return L("ベースモデルのベンチマーク", "Benchmark for the base model")
                 Case "variant"
                     Return L("近い派生モデルからの推定", "Estimate from a close variant")
+                Case "line_interp"
+                    Return L("同じモデル系列からのサイズ補間", "Size interpolation from the same model line")
                 Case "self_reported"
                     Return L("モデルカードの自己申告", "Self-reported model card result")
                 Case "none"

@@ -21,6 +21,7 @@ Namespace Dto
         Public Property Downloads As Long
         Public Property Likes As Long
         Public Property PublishedDate As DateTimeOffset?
+        Public Property UpdatedDate As DateTimeOffset?
         Public Property BaseModel As String = ""
         Public Property PipelineTag As String = ""
         Public Property UseCase As String = "general"
@@ -44,5 +45,6 @@ Namespace Dto
         Public Property Confidence As Double
         Public Property Status As String = "?"
         Public Property Notes As String = ""
+        Public Property BenchmarkTier As String = ""
     End Class
 End Namespace
