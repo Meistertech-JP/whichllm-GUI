@@ -3,28 +3,100 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:inf="clr-namespace:WhichLlm.Gui.Infrastructure"
         mc:Ignorable="d"
-        Title="whichllm GUI" Height="760" Width="1180" MinHeight="620" MinWidth="980"
-        Background="#F6F7F9">
+        Title="whichllm GUI v0.1.0" Height="780" Width="1220" MinHeight="680" MinWidth="1040"
+        FontFamily="Segoe UI, Meiryo UI" Background="#F5F5F7">
     <Window.Resources>
+        <SolidColorBrush x:Key="Ink" Color="#1D1D1F"/>
+        <SolidColorBrush x:Key="Muted" Color="#6E6E73"/>
+        <SolidColorBrush x:Key="Line" Color="#D2D2D7"/>
+        <SolidColorBrush x:Key="Surface" Color="#FFFFFF"/>
+        <SolidColorBrush x:Key="Accent" Color="#0071E3"/>
+
+        <inf:FitKindBrushConverter x:Key="FitBrush"/>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+
+        <Style x:Key="FocusVisual">
+            <Setter Property="Control.Template">
+                <Setter.Value>
+                    <ControlTemplate>
+                        <Rectangle Margin="-3" RadiusX="6" RadiusY="6" StrokeThickness="2" Stroke="{StaticResource Accent}" SnapsToDevicePixels="True"/>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <Style TargetType="TextBlock">
             <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Foreground" Value="{StaticResource Ink}"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
         </Style>
+
+        <Style x:Key="Caption" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#565659"/>
+            <Setter Property="FontSize" Value="13"/>
+        </Style>
+
+        <Style x:Key="FieldLabel" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="#3A3A3C"/>
+            <Setter Property="Margin" Value="0,0,0,4"/>
+            <Setter Property="ToolTipService.InitialShowDelay" Value="250"/>
+            <Setter Property="ToolTipService.ShowDuration" Value="20000"/>
+        </Style>
+
         <Style TargetType="TextBox">
-            <Setter Property="Margin" Value="0,3,12,8"/>
-            <Setter Property="Padding" Value="8,5"/>
+            <Setter Property="Margin" Value="0,0,12,10"/>
+            <Setter Property="Padding" Value="10,6"/>
             <Setter Property="MinWidth" Value="96"/>
+            <Setter Property="BorderBrush" Value="{StaticResource Line}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Background" Value="#FFFFFF"/>
+            <Setter Property="Foreground" Value="{StaticResource Ink}"/>
         </Style>
+
         <Style TargetType="ComboBox">
-            <Setter Property="Margin" Value="0,3,12,8"/>
+            <Setter Property="Margin" Value="0,0,12,10"/>
             <Setter Property="Padding" Value="4"/>
             <Setter Property="MinWidth" Value="132"/>
+            <Setter Property="BorderBrush" Value="{StaticResource Line}"/>
+            <Setter Property="Background" Value="#FFFFFF"/>
+            <Setter Property="ToolTipService.InitialShowDelay" Value="250"/>
+            <Setter Property="ToolTipService.ShowDuration" Value="20000"/>
         </Style>
-        <Style TargetType="Button">
-            <Setter Property="Margin" Value="0,3,8,8"/>
-            <Setter Property="Padding" Value="12,6"/>
+
+        <Style TargetType="CheckBox">
+            <Setter Property="Margin" Value="0,20,16,10"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="ToolTipService.InitialShowDelay" Value="250"/>
+            <Setter Property="ToolTipService.ShowDuration" Value="20000"/>
+        </Style>
+
+        <Style x:Key="PrimaryButton" TargetType="Button">
+            <Setter Property="Margin" Value="0,0,10,10"/>
+            <Setter Property="Padding" Value="18,8"/>
+            <Setter Property="MinWidth" Value="120"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Background" Value="{StaticResource Accent}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource Accent}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FocusVisualStyle" Value="{StaticResource FocusVisual}"/>
+        </Style>
+
+        <Style x:Key="SecondaryButton" TargetType="Button">
+            <Setter Property="Margin" Value="0,0,10,10"/>
+            <Setter Property="Padding" Value="14,7"/>
             <Setter Property="MinWidth" Value="96"/>
+            <Setter Property="Foreground" Value="{StaticResource Ink}"/>
+            <Setter Property="Background" Value="#FFFFFF"/>
+            <Setter Property="BorderBrush" Value="{StaticResource Line}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="FocusVisualStyle" Value="{StaticResource FocusVisual}"/>
         </Style>
+
         <Style TargetType="DataGrid">
             <Setter Property="AutoGenerateColumns" Value="False"/>
             <Setter Property="CanUserAddRows" Value="False"/>
@@ -33,235 +105,446 @@
             <Setter Property="HeadersVisibility" Value="Column"/>
             <Setter Property="RowHeaderWidth" Value="0"/>
             <Setter Property="SelectionMode" Value="Single"/>
-            <Setter Property="Margin" Value="0,8,0,0"/>
+            <Setter Property="Margin" Value="0,12,0,0"/>
+            <Setter Property="BorderBrush" Value="{StaticResource Line}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Background" Value="#FFFFFF"/>
+            <Setter Property="RowBackground" Value="#FFFFFF"/>
+            <Setter Property="AlternatingRowBackground" Value="#FAFAFC"/>
+            <Setter Property="HorizontalGridLinesBrush" Value="#ECECF0"/>
+        </Style>
+
+        <Style TargetType="TabControl">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+        </Style>
+
+        <Style TargetType="TabItem">
+            <Setter Property="Padding" Value="14,7"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
         </Style>
     </Window.Resources>
 
-    <DockPanel LastChildFill="True">
-        <Border DockPanel.Dock="Top" Background="#1F2937" Padding="16,12">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <Border Background="#FBFBFD" BorderBrush="#E5E5EA" BorderThickness="0,0,0,1" Padding="22,16">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-                <StackPanel Orientation="Horizontal">
-                    <TextBlock Text="whichllm GUI" Foreground="White" FontSize="20" FontWeight="SemiBold" Margin="0,0,16,0"/>
-                    <TextBlock Text="{Binding StatusMessage}" Foreground="#D1D5DB"/>
+                <StackPanel>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="whichllm" FontSize="24" FontWeight="SemiBold"/>
+                        <TextBlock Text="{Binding AppVersion}" Style="{StaticResource Caption}" Margin="10,6,0,0"/>
+                    </StackPanel>
+                    <TextBlock Text="{Binding StatusMessage}" Style="{StaticResource Caption}" Margin="0,3,0,0"/>
                 </StackPanel>
-                <TextBlock Grid.Column="1" Text="{Binding IsBusy, StringFormat=Busy: {0}}" Foreground="#D1D5DB"/>
+                <Border Grid.Column="1" Background="#EFF6FF" BorderBrush="#BFDBFE" BorderThickness="1" CornerRadius="8" Padding="12,6" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding IsBusyLabel}" Foreground="#1D4ED8" FontWeight="SemiBold"/>
+                </Border>
             </Grid>
         </Border>
 
-        <TabControl Margin="12">
+        <TabControl Grid.Row="1" Margin="18,12,18,18">
             <TabItem Header="おすすめ">
-                <Grid>
+                <Grid Margin="0,12,0,0">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
-                        <RowDefinition Height="150"/>
+                        <RowDefinition Height="164"/>
                     </Grid.RowDefinitions>
 
-                    <Border Background="White" BorderBrush="#D8DEE9" BorderThickness="1" CornerRadius="4" Padding="12">
+                    <Border Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="8" Padding="18">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <TextBlock Text="このPCに合うモデル" FontSize="22" FontWeight="SemiBold"/>
+                                <TextBlock Text="用途を選ぶだけで、動きやすさと根拠を合わせて並べます。" Style="{StaticResource Caption}" Margin="0,6,0,0"/>
+                                <TextBlock Text="{Binding RecommendationHardwareSummary}" Style="{StaticResource Caption}" Margin="0,8,0,0"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                <Button Content="おすすめを探す" Command="{Binding RunRecommendationCommand}" IsDefault="True" Style="{StaticResource PrimaryButton}" ToolTip="表示中のCPU、RAM、GPU、VRAMを前提に、このPCに合うモデルを探します。"/>
+                                <Button Content="Markdown" Command="{Binding CopyMarkdownCommand}" Style="{StaticResource SecondaryButton}" ToolTip="表示中の推薦結果をMarkdown表としてコピーします。"/>
+                                <Button Content="JSON" Command="{Binding CopyJsonCommand}" Style="{StaticResource SecondaryButton}" ToolTip="表示中の推薦結果をJSONとしてコピーします。"/>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <Expander Grid.Row="1" Header="詳細条件" Margin="0,12,0,0" IsExpanded="False">
+                        <Border Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="8" Padding="14">
+                            <WrapPanel>
+                                <StackPanel>
+                                    <TextBlock Text="表示件数" Style="{StaticResource FieldLabel}" ToolTip="一覧に出す候補数です。迷う場合は10のままで大丈夫です。"/>
+                                    <TextBox Text="{Binding TopText, UpdateSourceTrigger=PropertyChanged}" Width="86"/>
+                                </StackPanel>
+                                <StackPanel>
+                                    <TextBlock Text="文脈の長さ" Style="{StaticResource FieldLabel}" ToolTip="一度に扱える文章量です。4096は軽め、長い文章を扱うなら8192以上が目安です。"/>
+                                    <TextBox Text="{Binding ContextText, UpdateSourceTrigger=PropertyChanged}" Width="118"/>
+                                </StackPanel>
+                                <StackPanel>
+                                    <TextBlock Text="用途" Style="{StaticResource FieldLabel}" ToolTip="モデルを何に使いたいかです。ランキングの重みと絞り込みに使います。"/>
+                                    <ComboBox ItemsSource="{Binding UseCases}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding SelectedUseCase}" Width="188"/>
+                                </StackPanel>
+                                <StackPanel>
+                                    <TextBlock Text="根拠" Style="{StaticResource FieldLabel}" ToolTip="直接ベンチマークだけに絞るか、近いモデルの推定や根拠なし候補も含めるかを選びます。"/>
+                                    <ComboBox ItemsSource="{Binding EvidenceModes}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding SelectedEvidence}" Width="220"/>
+                                </StackPanel>
+                                <StackPanel>
+                                    <TextBlock Text="快適度の条件" Style="{StaticResource FieldLabel}" ToolTip="CPUだけも許すか、GPUを使う候補だけにするか、GPUメモリ内に収まる候補だけにするかを選びます。"/>
+                                    <ComboBox ItemsSource="{Binding FitModes}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding SelectedFit}" Width="230"/>
+                                </StackPanel>
+                                <StackPanel>
+                                    <TextBlock Text="速度の条件" Style="{StaticResource FieldLabel}" ToolTip="tok/sは1秒あたりに生成できるトークン数です。10以上なら普段使い、30以上ならかなり速めの目安です。"/>
+                                    <ComboBox ItemsSource="{Binding SpeedModes}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding SelectedSpeed}" Width="230"/>
+                                </StackPanel>
+                                <StackPanel>
+                                    <TextBlock Text="量子化" Style="{StaticResource FieldLabel}" ToolTip="Q4_K_Mなどの圧縮形式です。空欄ならおすすめの形式を自動で見ます。"/>
+                                    <ComboBox IsEditable="True" IsTextSearchEnabled="False" StaysOpenOnEdit="True" ItemsSource="{Binding QuantOptions}" Text="{Binding QuantText, UpdateSourceTrigger=PropertyChanged}" SelectionChanged="EditableSuggestionComboBox_SelectionChanged" Width="150"/>
+                                </StackPanel>
+                                <StackPanel>
+                                    <TextBlock Text="GPUを試算" Style="{StaticResource FieldLabel}" ToolTip="別のGPUを買った場合などを試す入力です。例: RTX 4070, 2x RTX 4090"/>
+                                    <ComboBox IsEditable="True" IsTextSearchEnabled="False" StaysOpenOnEdit="True" ItemsSource="{Binding GpuOptions}" Text="{Binding SimulatedGpuText, UpdateSourceTrigger=PropertyChanged}" SelectionChanged="EditableSuggestionComboBox_SelectionChanged" Width="240"/>
+                                </StackPanel>
+                                <CheckBox Content="CPUのみ" IsChecked="{Binding CpuOnly}" ToolTip="GPUを使わない前提で候補を探します。"/>
+                                <CheckBox Content="再取得" IsChecked="{Binding Refresh}" ToolTip="保存済みデータを使わず、モデル情報を取り直します。"/>
+                            </WrapPanel>
+                        </Border>
+                    </Expander>
+
+                    <Border Grid.Row="2" Margin="0,12,0,0" Padding="18"
+                            Background="{StaticResource Surface}" BorderBrush="{StaticResource Accent}" BorderThickness="2" CornerRadius="12"
+                            Visibility="{Binding HasResults, Converter={StaticResource BoolToVis}}">
+                        <StackPanel DataContext="{Binding TopPick}">
+                            <Border Background="#E6F1FB" CornerRadius="10" Padding="9,2" HorizontalAlignment="Left">
+                                <TextBlock Text="{Binding RankLabel}" Foreground="#0C447C" FontWeight="SemiBold" FontSize="12"/>
+                            </Border>
+                            <TextBlock Text="{Binding ModelName}" FontSize="20" FontWeight="SemiBold" Margin="0,8,0,0"/>
+                            <TextBlock Text="{Binding UseCaseLabel}" Style="{StaticResource Caption}" Margin="0,2,0,0"/>
+                            <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                                <Border CornerRadius="10" Padding="10,3" Background="{Binding FitKind, Converter={StaticResource FitBrush}, ConverterParameter=bg}">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Ellipse Width="9" Height="9" Margin="0,0,6,0" VerticalAlignment="Center" Fill="{Binding FitKind, Converter={StaticResource FitBrush}, ConverterParameter=dot}"/>
+                                        <TextBlock Text="{Binding FitLabel}" FontWeight="SemiBold" Foreground="{Binding FitKind, Converter={StaticResource FitBrush}, ConverterParameter=fg}"/>
+                                    </StackPanel>
+                                </Border>
+                                <Border CornerRadius="10" Padding="10,3" Margin="8,0,0,0" Background="#EFEFF0">
+                                    <TextBlock Text="{Binding SpeedWord}" FontWeight="SemiBold" Foreground="#3A3A3C"/>
+                                </Border>
+                            </StackPanel>
+                            <TextBlock Text="{Binding WhyLine}" Style="{StaticResource Caption}" Margin="0,10,0,0"/>
+                            <TextBlock Text="{Binding PopularityLabel}" Style="{StaticResource Caption}" Margin="0,2,0,0"/>
+                        </StackPanel>
+                    </Border>
+
+                    <DataGrid Grid.Row="3" ItemsSource="{Binding RecommendationRows}" SelectedItem="{Binding SelectedResult}">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Binding="{Binding RankLabel}" Width="90">
+                                <DataGridTextColumn.Header>
+                                    <TextBlock Text="おすすめ" ToolTip="総合スコア順の順位です。"/>
+                                </DataGridTextColumn.Header>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Binding="{Binding ModelName}" Width="*">
+                                <DataGridTextColumn.Header>
+                                    <TextBlock Text="モデル" ToolTip="Hugging Faceなどで使われるモデル名です。"/>
+                                </DataGridTextColumn.Header>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Binding="{Binding UseCaseLabel}" Width="130">
+                                <DataGridTextColumn.Header>
+                                    <TextBlock Text="用途" ToolTip="この候補が得意とする用途です。"/>
+                                </DataGridTextColumn.Header>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Binding="{Binding Quantization}" Width="110">
+                                <DataGridTextColumn.Header>
+                                    <TextBlock Text="量子化" ToolTip="モデルを軽くする圧縮形式です。Q4は軽め、Q8やFP16は重めですが品質が落ちにくい傾向です。"/>
+                                </DataGridTextColumn.Header>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Binding="{Binding Score}" Width="82">
+                                <DataGridTextColumn.Header>
+                                    <TextBlock Text="スコア" ToolTip="品質、速度、メモリ適合、根拠を合わせた総合点です。"/>
+                                </DataGridTextColumn.Header>
+                            </DataGridTextColumn>
+                            <DataGridTemplateColumn Width="130" SortMemberPath="FitLabel">
+                                <DataGridTemplateColumn.Header>
+                                    <TextBlock Text="快適度" ToolTip="このPCでどれくらい無理なく動くかの目安です。緑=快適、橙=動くが重め、灰=要確認。"/>
+                                </DataGridTemplateColumn.Header>
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Border CornerRadius="10" Padding="9,2" Margin="0,2" HorizontalAlignment="Left"
+                                                Background="{Binding FitKind, Converter={StaticResource FitBrush}, ConverterParameter=bg}">
+                                            <StackPanel Orientation="Horizontal">
+                                                <Ellipse Width="8" Height="8" Margin="0,0,6,0" VerticalAlignment="Center"
+                                                         Fill="{Binding FitKind, Converter={StaticResource FitBrush}, ConverterParameter=dot}"/>
+                                                <TextBlock Text="{Binding FitLabel}" FontWeight="SemiBold"
+                                                           Foreground="{Binding FitKind, Converter={StaticResource FitBrush}, ConverterParameter=fg}"/>
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTextColumn Binding="{Binding Memory}" Width="112">
+                                <DataGridTextColumn.Header>
+                                    <TextBlock Text="必要メモリ" ToolTip="モデルを動かすために必要なGPUメモリの目安です。"/>
+                                </DataGridTextColumn.Header>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Binding="{Binding SpeedWord}" Width="120" SortMemberPath="Speed">
+                                <DataGridTextColumn.Header>
+                                    <TextBlock Text="速度の目安" ToolTip="返事の速さの目安です。「とても速い」「普段使いに十分」「ややゆっくり」で表します。正確な数値は行を選ぶと下に出ます。"/>
+                                </DataGridTextColumn.Header>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Binding="{Binding EvidenceLabel}" Width="*">
+                                <DataGridTextColumn.Header>
+                                    <TextBlock Text="根拠" ToolTip="内蔵ベンチ、近いモデルからの推定、自己申告などの違いです。行を選ぶと下の詳細欄にスコアと種類が出ます。"/>
+                                </DataGridTextColumn.Header>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Binding="{Binding Published}" Width="104">
+                                <DataGridTextColumn.Header>
+                                    <TextBlock Text="公開日" ToolTip="モデルが公開された日です。"/>
+                                </DataGridTextColumn.Header>
+                            </DataGridTextColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+
+                    <TextBlock Grid.Row="3" Visibility="{Binding ShowEmptyHint, Converter={StaticResource BoolToVis}}"
+                               HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center"
+                               MaxWidth="440" Foreground="{StaticResource Muted}" FontSize="14"
+                               Text="「おすすめを探す」を押すと、このPCで使えるモデルが一覧で出ます。"/>
+
+                    <Border Grid.Row="4" Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,12,0,0">
+                        <TextBox Text="{Binding SelectedDetails, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" BorderThickness="0" Background="Transparent" FontFamily="Meiryo UI"/>
+                    </Border>
+                </Grid>
+            </TabItem>
+
+            <TabItem Header="このPC">
+                <Grid Margin="0,12,0,0">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="148"/>
+                    </Grid.RowDefinitions>
+                    <Border Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="8" Padding="18">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <TextBlock Text="このPCの余力" FontSize="22" FontWeight="SemiBold"/>
+                                <TextBlock Text="GPU、メモリ、CPUを確認して、推薦の前提に使います。" Style="{StaticResource Caption}" Margin="0,6,0,0"/>
+                            </StackPanel>
+                            <Button Grid.Column="1" Content="再検出" Command="{Binding DetectHardwareCommand}" Style="{StaticResource PrimaryButton}" ToolTip="CPU、メモリ、GPUをもう一度読み取ります。"/>
+                        </Grid>
+                    </Border>
+
+                    <Expander Grid.Row="1" Header="手入力で調整" Margin="0,12,0,0" IsExpanded="False">
+                        <Border Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="8" Padding="14">
+                            <WrapPanel>
+                                <StackPanel>
+                                    <TextBlock Text="GPUメモリ上書き(GB)" Style="{StaticResource FieldLabel}" ToolTip="自動検出が違う時に、GPUメモリをGB単位で指定します。"/>
+                                    <TextBox Text="{Binding VramOverrideText, UpdateSourceTrigger=PropertyChanged}" Width="150"/>
+                                </StackPanel>
+                                <StackPanel>
+                                    <TextBlock Text="帯域(GB/s)" Style="{StaticResource FieldLabel}" ToolTip="GPUメモリの速さです。分かる場合だけ入力します。"/>
+                                    <TextBox Text="{Binding BandwidthOverrideText, UpdateSourceTrigger=PropertyChanged}" Width="126"/>
+                                </StackPanel>
+                                <StackPanel>
+                                    <TextBlock Text="GPUメモリ予約" Style="{StaticResource FieldLabel}" ToolTip="OSや他のアプリのために空けておくGPUメモリです。autoで安全寄りに計算します。"/>
+                                    <TextBox Text="{Binding VramHeadroomText, UpdateSourceTrigger=PropertyChanged}" Width="126"/>
+                                </StackPanel>
+                                <StackPanel>
+                                    <TextBlock Text="メインメモリ予算" Style="{StaticResource FieldLabel}" ToolTip="CPUや一部オフロードで使ってよいメモリ量です。availableで現在の空きメモリを使います。"/>
+                                    <TextBox Text="{Binding RamBudgetText, UpdateSourceTrigger=PropertyChanged}" Width="138"/>
+                                </StackPanel>
+                            </WrapPanel>
+                        </Border>
+                    </Expander>
+
+                    <DataGrid Grid.Row="2" ItemsSource="{Binding HardwareRows}">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="グラフィック" Binding="{Binding Name}" Width="2*"/>
+                            <DataGridTextColumn Header="メーカー" Binding="{Binding Vendor}" Width="108"/>
+                            <DataGridTextColumn Header="専用メモリ" Binding="{Binding Vram}" Width="120"/>
+                            <DataGridTextColumn Header="使える目安" Binding="{Binding UsableVram}" Width="122"/>
+                            <DataGridTextColumn Header="帯域" Binding="{Binding Bandwidth}" Width="112"/>
+                            <DataGridTextColumn Header="種類" Binding="{Binding SharedMemory}" Width="86"/>
+                            <DataGridTextColumn Header="メモ" Binding="{Binding Notes}" Width="2*"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                    <Border Grid.Row="3" Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,12,0,0">
+                        <TextBox Text="{Binding HardwareSummary}" IsReadOnly="True" TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" BorderThickness="0" Background="Transparent" FontFamily="Meiryo UI"/>
+                    </Border>
+                </Grid>
+            </TabItem>
+
+            <TabItem Header="プラン">
+                <Grid Margin="0,12,0,0">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <Border Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="8" Padding="18">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <TextBlock Text="動かす前のプラン" FontSize="22" FontWeight="SemiBold"/>
+                                <TextBlock Text="{Binding PlanSummary}" Style="{StaticResource Caption}" Margin="0,6,0,0"/>
+                            </StackPanel>
+                            <Button Grid.Column="1" Content="プランを作成" Command="{Binding RunPlanCommand}" Style="{StaticResource PrimaryButton}" ToolTip="指定したモデルについて、量子化ごとの必要メモリを見積もります。"/>
+                        </Grid>
+                    </Border>
+
+                    <Border Grid.Row="1" Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="8" Padding="14" Margin="0,12,0,0">
                         <WrapPanel>
                             <StackPanel>
-                                <TextBlock Text="件数"/>
-                                <TextBox Text="{Binding TopText, UpdateSourceTrigger=PropertyChanged}" Width="70"/>
+                                <TextBlock Text="モデル名" Style="{StaticResource FieldLabel}" ToolTip="探したいモデル名の一部です。例: llama 3 8b"/>
+                                <ComboBox IsEditable="True" IsTextSearchEnabled="False" StaysOpenOnEdit="True" ItemsSource="{Binding PlanModelOptions}" Text="{Binding PlanQuery, UpdateSourceTrigger=PropertyChanged}" SelectionChanged="EditableSuggestionComboBox_SelectionChanged" Width="320"/>
                             </StackPanel>
                             <StackPanel>
-                                <TextBlock Text="コンテキスト"/>
-                                <TextBox Text="{Binding ContextText, UpdateSourceTrigger=PropertyChanged}" Width="110"/>
+                                <TextBlock Text="量子化" Style="{StaticResource FieldLabel}" ToolTip="Q4_K_Mなどの形式です。空欄なら代表的な形式をまとめて見積もります。"/>
+                                <ComboBox IsEditable="True" IsTextSearchEnabled="False" StaysOpenOnEdit="True" ItemsSource="{Binding PlanQuantOptions}" Text="{Binding PlanQuant, UpdateSourceTrigger=PropertyChanged}" SelectionChanged="EditableSuggestionComboBox_SelectionChanged" Width="150"/>
                             </StackPanel>
                             <StackPanel>
-                                <TextBlock Text="用途"/>
-                                <ComboBox ItemsSource="{Binding UseCases}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding SelectedUseCase}" Width="150"/>
+                                <TextBlock Text="文脈の長さ" Style="{StaticResource FieldLabel}" ToolTip="長い文章を扱うほど必要メモリが増えます。"/>
+                                <TextBox Text="{Binding PlanContextText, UpdateSourceTrigger=PropertyChanged}" Width="126"/>
                             </StackPanel>
-                            <StackPanel>
-                                <TextBlock Text="プロファイル"/>
-                                <ComboBox ItemsSource="{Binding Profiles}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding SelectedProfile}" Width="150"/>
-                            </StackPanel>
-                            <StackPanel>
-                                <TextBlock Text="根拠"/>
-                                <ComboBox ItemsSource="{Binding EvidenceModes}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding SelectedEvidence}" Width="120"/>
-                            </StackPanel>
-                            <StackPanel>
-                                <TextBlock Text="Fit"/>
-                                <ComboBox ItemsSource="{Binding FitModes}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding SelectedFit}" Width="120"/>
-                            </StackPanel>
-                            <StackPanel>
-                                <TextBlock Text="速度"/>
-                                <ComboBox ItemsSource="{Binding SpeedModes}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding SelectedSpeed}" Width="120"/>
-                            </StackPanel>
-                            <StackPanel>
-                                <TextBlock Text="量子化"/>
-                                <TextBox Text="{Binding QuantText, UpdateSourceTrigger=PropertyChanged}" Width="110"/>
-                            </StackPanel>
-                            <StackPanel>
-                                <TextBlock Text="GPUシミュレーション"/>
-                                <TextBox Text="{Binding SimulatedGpuText, UpdateSourceTrigger=PropertyChanged}" Width="180"/>
-                            </StackPanel>
-                            <CheckBox Content="CPUのみ" IsChecked="{Binding CpuOnly}" Margin="0,24,12,0"/>
-                            <CheckBox Content="再取得" IsChecked="{Binding Refresh}" Margin="0,24,12,0"/>
-                            <Button Content="推薦を計算" Command="{Binding RunRecommendationCommand}" Margin="8,19,8,8"/>
-                            <Button Content="Markdownコピー" Command="{Binding CopyMarkdownCommand}" Margin="0,19,8,8"/>
-                            <Button Content="JSONコピー" Command="{Binding CopyJsonCommand}" Margin="0,19,8,8"/>
                         </WrapPanel>
                     </Border>
 
-                    <DataGrid Grid.Row="1" ItemsSource="{Binding RecommendationRows}" SelectedItem="{Binding SelectedResult}">
+                    <DataGrid Grid.Row="2" ItemsSource="{Binding PlanRows}">
                         <DataGrid.Columns>
-                            <DataGridTextColumn Header="#" Binding="{Binding Rank}" Width="44"/>
-                            <DataGridTextColumn Header="モデル" Binding="{Binding Model}" Width="2*"/>
-                            <DataGridTextColumn Header="用途" Binding="{Binding UseCase}" Width="110"/>
-                            <DataGridTextColumn Header="Quant" Binding="{Binding Quantization}" Width="100"/>
-                            <DataGridTextColumn Header="Score" Binding="{Binding Score}" Width="80"/>
-                            <DataGridTextColumn Header="Fit" Binding="{Binding Fit}" Width="120"/>
-                            <DataGridTextColumn Header="Memory" Binding="{Binding Memory}" Width="110"/>
-                            <DataGridTextColumn Header="Speed" Binding="{Binding Speed}" Width="110"/>
-                            <DataGridTextColumn Header="Evidence" Binding="{Binding Evidence}" Width="110"/>
-                            <DataGridTextColumn Header="Published" Binding="{Binding Published}" Width="110"/>
-                        </DataGrid.Columns>
-                    </DataGrid>
-
-                    <TextBox Grid.Row="2" Text="{Binding SelectedDetails, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" FontFamily="Consolas"/>
-                </Grid>
-            </TabItem>
-
-            <TabItem Header="ハードウェア">
-                <Grid>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="*"/>
-                        <RowDefinition Height="150"/>
-                    </Grid.RowDefinitions>
-                    <StackPanel Orientation="Horizontal">
-                        <Button Content="検出" Command="{Binding DetectHardwareCommand}"/>
-                        <TextBlock Text="VRAM上書き(GB)" Margin="8,0,4,0"/>
-                        <TextBox Text="{Binding VramOverrideText, UpdateSourceTrigger=PropertyChanged}" Width="100"/>
-                        <TextBlock Text="帯域(GB/s)" Margin="8,0,4,0"/>
-                        <TextBox Text="{Binding BandwidthOverrideText, UpdateSourceTrigger=PropertyChanged}" Width="100"/>
-                        <TextBlock Text="VRAM予約" Margin="8,0,4,0"/>
-                        <TextBox Text="{Binding VramHeadroomText, UpdateSourceTrigger=PropertyChanged}" Width="100"/>
-                        <TextBlock Text="RAM予算" Margin="8,0,4,0"/>
-                        <TextBox Text="{Binding RamBudgetText, UpdateSourceTrigger=PropertyChanged}" Width="120"/>
-                    </StackPanel>
-                    <DataGrid Grid.Row="1" ItemsSource="{Binding HardwareRows}">
-                        <DataGrid.Columns>
-                            <DataGridTextColumn Header="GPU" Binding="{Binding Name}" Width="2*"/>
-                            <DataGridTextColumn Header="Vendor" Binding="{Binding Vendor}" Width="110"/>
-                            <DataGridTextColumn Header="VRAM" Binding="{Binding Vram}" Width="120"/>
-                            <DataGridTextColumn Header="Usable" Binding="{Binding UsableVram}" Width="120"/>
-                            <DataGridTextColumn Header="Bandwidth" Binding="{Binding Bandwidth}" Width="120"/>
-                            <DataGridTextColumn Header="Shared" Binding="{Binding SharedMemory}" Width="90"/>
-                            <DataGridTextColumn Header="Notes" Binding="{Binding Notes}" Width="2*"/>
-                        </DataGrid.Columns>
-                    </DataGrid>
-                    <TextBox Grid.Row="2" Text="{Binding HardwareSummary}" IsReadOnly="True" TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" FontFamily="Consolas"/>
-                </Grid>
-            </TabItem>
-
-            <TabItem Header="導入計画">
-                <Grid>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="*"/>
-                    </Grid.RowDefinitions>
-                    <WrapPanel>
-                        <StackPanel>
-                            <TextBlock Text="モデル検索"/>
-                            <TextBox Text="{Binding PlanQuery, UpdateSourceTrigger=PropertyChanged}" Width="260"/>
-                        </StackPanel>
-                        <StackPanel>
-                            <TextBlock Text="Quant"/>
-                            <TextBox Text="{Binding PlanQuant, UpdateSourceTrigger=PropertyChanged}" Width="120"/>
-                        </StackPanel>
-                        <StackPanel>
-                            <TextBlock Text="Context"/>
-                            <TextBox Text="{Binding PlanContextText, UpdateSourceTrigger=PropertyChanged}" Width="120"/>
-                        </StackPanel>
-                        <Button Content="計画を作成" Command="{Binding RunPlanCommand}" Margin="8,19,8,8"/>
-                        <TextBlock Text="{Binding PlanSummary}" Margin="8,0,0,0"/>
-                    </WrapPanel>
-                    <DataGrid Grid.Row="1" ItemsSource="{Binding PlanRows}">
-                        <DataGrid.Columns>
-                            <DataGridTextColumn Header="Quant" Binding="{Binding Quantization}" Width="120"/>
-                            <DataGridTextColumn Header="Required" Binding="{Binding Required}" Width="140"/>
-                            <DataGridTextColumn Header="Current" Binding="{Binding Current}" Width="100"/>
-                            <DataGridTextColumn Header="Fits Common GPUs" Binding="{Binding CommonGpus}" Width="*"/>
+                            <DataGridTextColumn Header="量子化" Binding="{Binding Quantization}" Width="126"/>
+                            <DataGridTextColumn Header="必要メモリ" Binding="{Binding Required}" Width="140"/>
+                            <DataGridTextColumn Header="このPC" Binding="{Binding Current}" Width="150"/>
+                            <DataGridTextColumn Header="合いやすいGPU" Binding="{Binding CommonGpus}" Width="*"/>
                         </DataGrid.Columns>
                     </DataGrid>
                 </Grid>
             </TabItem>
 
-            <TabItem Header="GPU比較">
-                <Grid>
+            <TabItem Header="買い替え比較">
+                <Grid Margin="0,12,0,0">
                     <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
-                    <WrapPanel>
+                    <Border Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="8" Padding="18">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <TextBlock Text="GPUを替えたらどう変わるか" FontSize="22" FontWeight="SemiBold"/>
+                                <TextBlock Text="{Binding UpgradeSummary}" Style="{StaticResource Caption}" Margin="0,6,0,0"/>
+                            </StackPanel>
+                            <Button Grid.Column="1" Content="比較" Command="{Binding RunUpgradeCommand}" Style="{StaticResource PrimaryButton}" ToolTip="候補GPUごとに、最有力モデルと伸び幅を比べます。"/>
+                        </Grid>
+                    </Border>
+
+                    <Border Grid.Row="1" Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="8" Padding="14" Margin="0,12,0,0">
                         <StackPanel>
-                            <TextBlock Text="比較GPU"/>
-                            <TextBox Text="{Binding UpgradeTargetsText, UpdateSourceTrigger=PropertyChanged}" Width="420"/>
+                            <TextBlock Text="比較するGPU" Style="{StaticResource FieldLabel}" ToolTip="カンマ区切りで複数入力できます。例: RTX 4070, RX 7900 XTX"/>
+                            <ComboBox IsEditable="True" IsTextSearchEnabled="False" StaysOpenOnEdit="True" ItemsSource="{Binding UpgradeGpuOptions}" Text="{Binding UpgradeTargetsText, UpdateSourceTrigger=PropertyChanged}" SelectionChanged="EditableSuggestionComboBox_SelectionChanged" Width="560"/>
                         </StackPanel>
-                        <Button Content="比較" Command="{Binding RunUpgradeCommand}" Margin="8,19,8,8"/>
-                        <TextBlock Text="{Binding UpgradeSummary}" Margin="8,0,0,0"/>
-                    </WrapPanel>
-                    <DataGrid Grid.Row="1" ItemsSource="{Binding UpgradeRows}">
+                    </Border>
+
+                    <DataGrid Grid.Row="2" ItemsSource="{Binding UpgradeRows}">
                         <DataGrid.Columns>
-                            <DataGridTextColumn Header="GPU" Binding="{Binding TargetGpu}" Width="160"/>
-                            <DataGridTextColumn Header="Top Model" Binding="{Binding TopModel}" Width="2*"/>
-                            <DataGridTextColumn Header="Score" Binding="{Binding TopScore}" Width="90"/>
-                            <DataGridTextColumn Header="Fit" Binding="{Binding Fit}" Width="120"/>
-                            <DataGridTextColumn Header="Speed" Binding="{Binding Speed}" Width="120"/>
-                            <DataGridTextColumn Header="Gain" Binding="{Binding Gain}" Width="90"/>
+                            <DataGridTextColumn Header="GPU" Binding="{Binding TargetGpu}" Width="170"/>
+                            <DataGridTextColumn Header="最有力モデル" Binding="{Binding TopModel}" Width="2*"/>
+                            <DataGridTextColumn Header="スコア" Binding="{Binding TopScore}" Width="90"/>
+                            <DataGridTextColumn Header="快適度" Binding="{Binding Fit}" Width="120"/>
+                            <DataGridTextColumn Header="速度目安" Binding="{Binding Speed}" Width="120"/>
+                            <DataGridTextColumn Header="伸び幅" Binding="{Binding Gain}" Width="90"/>
                         </DataGrid.Columns>
                     </DataGrid>
                 </Grid>
             </TabItem>
 
             <TabItem Header="スニペット">
-                <Grid>
+                <Grid Margin="0,12,0,0">
                     <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
-                    <WrapPanel>
-                        <StackPanel>
-                            <TextBlock Text="モデル検索"/>
-                            <TextBox Text="{Binding SnippetQuery, UpdateSourceTrigger=PropertyChanged}" Width="280"/>
-                        </StackPanel>
-                        <StackPanel>
-                            <TextBlock Text="Quant"/>
-                            <TextBox Text="{Binding SnippetQuant, UpdateSourceTrigger=PropertyChanged}" Width="120"/>
-                        </StackPanel>
-                        <Button Content="生成" Command="{Binding GenerateSnippetCommand}" Margin="8,19,8,8"/>
-                        <Button Content="コピー" Command="{Binding CopySnippetCommand}" Margin="0,19,8,8"/>
-                    </WrapPanel>
-                    <TextBox Grid.Row="1" Text="{Binding SnippetCommandLine}" IsReadOnly="True" FontFamily="Consolas"/>
-                    <TextBox Grid.Row="2" Text="{Binding SnippetCode}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="NoWrap" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" FontFamily="Consolas"/>
+                    <Border Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="8" Padding="18">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <TextBlock Text="開発者向けスニペット" FontSize="22" FontWeight="SemiBold"/>
+                                <TextBlock Text="モデルを動かすためのPythonコードとuvコマンドを作ります。" Style="{StaticResource Caption}" Margin="0,6,0,0"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                <Button Content="生成" Command="{Binding GenerateSnippetCommand}" Style="{StaticResource PrimaryButton}" ToolTip="指定したモデルと量子化でコードを生成します。"/>
+                                <Button Content="コピー" Command="{Binding CopySnippetCommand}" Style="{StaticResource SecondaryButton}" ToolTip="コマンドとコードをまとめてコピーします。"/>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+                    <Border Grid.Row="1" Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="8" Padding="14" Margin="0,12,0,0">
+                        <WrapPanel>
+                            <StackPanel>
+                                <TextBlock Text="モデル名" Style="{StaticResource FieldLabel}" ToolTip="探したいモデル名の一部です。例: qwen 7b"/>
+                                <ComboBox IsEditable="True" IsTextSearchEnabled="False" StaysOpenOnEdit="True" ItemsSource="{Binding SnippetModelOptions}" Text="{Binding SnippetQuery, UpdateSourceTrigger=PropertyChanged}" SelectionChanged="EditableSuggestionComboBox_SelectionChanged" Width="320"/>
+                            </StackPanel>
+                            <StackPanel>
+                                <TextBlock Text="量子化" Style="{StaticResource FieldLabel}" ToolTip="GGUFの量子化形式です。例: Q4_K_M"/>
+                                <ComboBox IsEditable="True" IsTextSearchEnabled="False" StaysOpenOnEdit="True" ItemsSource="{Binding SnippetQuantOptions}" Text="{Binding SnippetQuant, UpdateSourceTrigger=PropertyChanged}" SelectionChanged="EditableSuggestionComboBox_SelectionChanged" Width="150"/>
+                            </StackPanel>
+                        </WrapPanel>
+                    </Border>
+                    <TextBox Grid.Row="2" Text="{Binding SnippetCommandLine}" IsReadOnly="True" FontFamily="Consolas" Margin="0,12,0,10"/>
+                    <TextBox Grid.Row="3" Text="{Binding SnippetCode}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="NoWrap" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" FontFamily="Consolas"/>
                 </Grid>
             </TabItem>
 
             <TabItem Header="設定">
-                <Grid Margin="4">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="180"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
+                <Grid Margin="0,12,0,0">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
-                    <TextBlock Text="キャッシュ" FontWeight="SemiBold" Margin="0,0,12,10"/>
-                    <TextBox Grid.Column="1" Text="{Binding CachePath, Mode=OneWay}" IsReadOnly="True"/>
-                    <TextBlock Grid.Row="1" Text="HF_ENDPOINT" FontWeight="SemiBold" Margin="0,0,12,10"/>
-                    <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding HfEndpoint, Mode=OneWay}" IsReadOnly="True"/>
-                    <TextBlock Grid.Row="2" Grid.ColumnSpan="2" TextWrapping="Wrap" Margin="0,12,0,0"
-                               Text="runはv1非対応です。推薦、ハードウェア検出、導入計画、GPU比較、Pythonスニペット生成に対応しています。用途フィルタはllmfitのGeneral/Coding/Reasoning/Chat/Multimodal/Embedding思想をGUI向けに取り込み、whichllm由来のprofileとは別に再ランキングへ反映します。"/>
+                    <Border Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="8" Padding="18">
+                        <TextBlock Text="設定" FontSize="22" FontWeight="SemiBold"/>
+                    </Border>
+                    <Border Grid.Row="1" Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="8" Padding="18" Margin="0,12,0,0">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="180"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <TextBlock Text="キャッシュ" Style="{StaticResource FieldLabel}" ToolTip="取得したモデル情報とベンチマーク情報を保存する場所です。"/>
+                            <TextBox Grid.Column="1" Text="{Binding CachePath, Mode=OneWay}" IsReadOnly="True"/>
+                            <TextBlock Grid.Row="1" Text="HF_ENDPOINT" Style="{StaticResource FieldLabel}" ToolTip="Hugging Face互換の接続先です。通常はこのままで使います。"/>
+                            <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding HfEndpoint, Mode=OneWay}" IsReadOnly="True"/>
+                        </Grid>
+                    </Border>
                 </Grid>
             </TabItem>
         </TabControl>
-    </DockPanel>
+    </Grid>
 </Window>

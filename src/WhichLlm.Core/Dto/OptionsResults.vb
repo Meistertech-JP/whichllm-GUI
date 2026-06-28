@@ -57,6 +57,16 @@ Namespace Dto
         Public Property RequiredBytes As Long
         Public Property FitsCurrentHardware As Boolean
         Public Property FitsCommonGpus As New Dictionary(Of String, Boolean)
+        Public Property RecommendedGpus As New List(Of GpuRecommendation)
+    End Class
+
+    Public Class GpuRecommendation
+        Public Property Name As String = ""
+        Public Property Vendor As String = ""
+        Public Property FitType As String = ""
+        Public Property VramGb As Double
+        Public Property BandwidthGbps As Double?
+        Public Property BalanceScore As Double
     End Class
 
     Public Class PlanResult

@@ -17,11 +17,42 @@ Namespace Services
             Entry("RTX 3090", "NVIDIA", 24, 936, "8.6", False, "GeForce RTX 3090"),
             Entry("RTX 3080", "NVIDIA", 10, 760, "8.6", False, "GeForce RTX 3080"),
             Entry("RTX 3060", "NVIDIA", 12, 360, "8.6", False, "GeForce RTX 3060"),
+            Entry("Titan RTX", "NVIDIA", 24, 672, "7.5", False, "NVIDIA Titan RTX"),
+            Entry("RTX 2080 Ti", "NVIDIA", 11, 616, "7.5", False, "GeForce RTX 2080 Ti"),
+            Entry("RTX 2080 SUPER", "NVIDIA", 8, 496, "7.5", False, "GeForce RTX 2080 SUPER", "RTX 2080S"),
+            Entry("RTX 2080", "NVIDIA", 8, 448, "7.5", False, "GeForce RTX 2080"),
+            Entry("RTX 2070 SUPER", "NVIDIA", 8, 448, "7.5", False, "GeForce RTX 2070 SUPER", "RTX 2070S"),
+            Entry("RTX 2070", "NVIDIA", 8, 448, "7.5", False, "GeForce RTX 2070"),
+            Entry("RTX 2060 SUPER", "NVIDIA", 8, 448, "7.5", False, "GeForce RTX 2060 SUPER", "RTX 2060S"),
+            Entry("RTX 2060 12GB", "NVIDIA", 12, 336, "7.5", False, "GeForce RTX 2060 12GB", "RTX 2060 12 GB"),
+            Entry("RTX 2060", "NVIDIA", 6, 336, "7.5", False, "GeForce RTX 2060"),
             Entry("GTX 1650", "NVIDIA", 4, 128, "7.5", False, "GeForce GTX 1650"),
             Entry("H100", "NVIDIA", 80, 3350, "9.0", False, "H100 SXM"),
             Entry("A100 80GB", "NVIDIA", 80, 2039, "8.0", False, "A100"),
             Entry("RX 7900 XTX", "AMD", 24, 960, "", False, "Radeon RX 7900 XTX"),
+            Entry("RX 7900 XT", "AMD", 20, 800, "", False, "Radeon RX 7900 XT", "AMD Radeon RX 7900 XT"),
+            Entry("RX 7900 GRE", "AMD", 16, 576, "", False, "Radeon RX 7900 GRE", "AMD Radeon RX 7900 GRE"),
             Entry("RX 7800 XT", "AMD", 16, 624, "", False, "Radeon RX 7800 XT"),
+            Entry("RX 7700 XT", "AMD", 12, 432, "", False, "Radeon RX 7700 XT", "AMD Radeon RX 7700 XT"),
+            Entry("RX 7600 XT", "AMD", 16, 288, "", False, "Radeon RX 7600 XT", "AMD Radeon RX 7600 XT"),
+            Entry("RX 6950 XT", "AMD", 16, 576, "", False, "Radeon RX 6950 XT", "AMD Radeon RX 6950 XT"),
+            Entry("RX 6900 XT", "AMD", 16, 512, "", False, "Radeon RX 6900 XT", "AMD Radeon RX 6900 XT"),
+            Entry("RX 6800 XT", "AMD", 16, 512, "", False, "Radeon RX 6800 XT", "AMD Radeon RX 6800 XT"),
+            Entry("RX 6800", "AMD", 16, 512, "", False, "Radeon RX 6800", "AMD Radeon RX 6800"),
+            Entry("RX 6750 XT", "AMD", 12, 432, "", False, "Radeon RX 6750 XT", "AMD Radeon RX 6750 XT"),
+            Entry("RX 6700 XT", "AMD", 12, 384, "", False, "Radeon RX 6700 XT", "AMD Radeon RX 6700 XT"),
+            Entry("RX 6700", "AMD", 10, 320, "", False, "Radeon RX 6700", "AMD Radeon RX 6700"),
+            Entry("RX 6650 XT", "AMD", 8, 280, "", False, "Radeon RX 6650 XT", "AMD Radeon RX 6650 XT"),
+            Entry("RX 6600 XT", "AMD", 8, 256, "", False, "Radeon RX 6600 XT", "AMD Radeon RX 6600 XT"),
+            Entry("RX 6600", "AMD", 8, 224, "", False, "Radeon RX 6600", "AMD Radeon RX 6600"),
+            Entry("RX 6500 XT", "AMD", 4, 144, "", False, "Radeon RX 6500 XT", "AMD Radeon RX 6500 XT"),
+            Entry("RX 6400", "AMD", 4, 128, "", False, "Radeon RX 6400", "AMD Radeon RX 6400"),
+            Entry("RX 5700 XT", "AMD", 8, 448, "", False, "Radeon RX 5700 XT", "AMD Radeon RX 5700 XT"),
+            Entry("RX 5700", "AMD", 8, 448, "", False, "Radeon RX 5700", "AMD Radeon RX 5700"),
+            Entry("RX 5600 XT", "AMD", 6, 288, "", False, "Radeon RX 5600 XT", "AMD Radeon RX 5600 XT"),
+            Entry("RX 5500 XT 8GB", "AMD", 8, 224, "", False, "Radeon RX 5500 XT 8GB", "AMD Radeon RX 5500 XT 8GB", "RX 5500 XT 8 GB"),
+            Entry("RX 5500 XT 4GB", "AMD", 4, 224, "", False, "Radeon RX 5500 XT 4GB", "AMD Radeon RX 5500 XT 4GB", "RX 5500 XT", "Radeon RX 5500 XT"),
+            Entry("Radeon VII", "AMD", 16, 1024, "", False, "AMD Radeon VII", "Radeon 7", "Vega 20"),
             Entry("RX 7600", "AMD", 8, 288, "", False, "Radeon RX 7600"),
             Entry("Radeon 8060S", "AMD", 96, 256, "", True, "Strix Halo", "Ryzen AI MAX 395"),
             Entry("Radeon 890M", "AMD", 32, 120, "", True, "Ryzen AI 9 HX 370"),
@@ -152,7 +183,7 @@ Namespace Services
             If text.Contains("nvidia", StringComparison.Ordinal) OrElse text.Contains("rtx", StringComparison.Ordinal) OrElse text.Contains("gtx", StringComparison.Ordinal) Then Return "NVIDIA"
             If text.Contains("amd", StringComparison.Ordinal) OrElse text.Contains("radeon", StringComparison.Ordinal) OrElse text.Contains("rx ", StringComparison.Ordinal) Then Return "AMD"
             If text.Contains("intel", StringComparison.Ordinal) OrElse text.Contains("arc", StringComparison.Ordinal) Then Return "Intel"
-            If text.Contains("apple", StringComparison.Ordinal) OrElse text.Contains("m", StringComparison.Ordinal) Then Return "Apple"
+            If text.Contains("apple", StringComparison.Ordinal) OrElse Regex.IsMatch(text, "\bm[1-9]\d?\b", RegexOptions.IgnoreCase) Then Return "Apple"
             Return "Unknown"
         End Function
 

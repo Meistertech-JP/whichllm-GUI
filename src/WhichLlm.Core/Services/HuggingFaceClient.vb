@@ -26,10 +26,14 @@ Namespace Services
 
         Public Async Function FetchModelsAsync(profile As String, useCase As String, refresh As Boolean, Optional cancellationToken As CancellationToken = Nothing) As Task(Of List(Of ModelInfo)) Implements IHuggingFaceClient.FetchModelsAsync
             Dim urls = New List(Of String) From {
-                $"{_endpoint}/api/models?pipeline_tag=text-generation&sort=downloads&direction=-1&limit=80&full=true",
-                $"{_endpoint}/api/models?search=GGUF&sort=downloads&direction=-1&limit=80&full=true",
-                $"{_endpoint}/api/models?search=Qwen%20GGUF&sort=downloads&direction=-1&limit=25&full=true",
-                $"{_endpoint}/api/models?search=Llama%20GGUF&sort=downloads&direction=-1&limit=25&full=true"
+                $"{_endpoint}/api/models?pipeline_tag=text-generation&sort=downloads&direction=-1&limit=200&full=true",
+                $"{_endpoint}/api/models?search=GGUF&sort=downloads&direction=-1&limit=200&full=true",
+                $"{_endpoint}/api/models?search=Qwen%20GGUF&sort=downloads&direction=-1&limit=60&full=true",
+                $"{_endpoint}/api/models?search=Llama%20GGUF&sort=downloads&direction=-1&limit=60&full=true",
+                $"{_endpoint}/api/models?search=Gemma%20GGUF&sort=downloads&direction=-1&limit=60&full=true",
+                $"{_endpoint}/api/models?search=Mistral%20GGUF&sort=downloads&direction=-1&limit=60&full=true",
+                $"{_endpoint}/api/models?search=DeepSeek%20GGUF&sort=downloads&direction=-1&limit=60&full=true",
+                $"{_endpoint}/api/models?search=Phi%20GGUF&sort=downloads&direction=-1&limit=60&full=true"
             }
 
             If String.Equals(profile, "vision", StringComparison.OrdinalIgnoreCase) OrElse String.Equals(profile, "any", StringComparison.OrdinalIgnoreCase) OrElse String.Equals(useCase, "multimodal", StringComparison.OrdinalIgnoreCase) Then
@@ -42,26 +46,52 @@ Namespace Services
             End If
 
             Dim byId As New Dictionary(Of String, ModelInfo)(StringComparer.OrdinalIgnoreCase)
+            Dim lastError As Exception = Nothing
             For Each url In urls
-                Using response = Await _httpClient.GetAsync(url, cancellationToken)
-                    response.EnsureSuccessStatusCode()
-                    Using stream = Await response.Content.ReadAsStreamAsync(cancellationToken)
-                        Using document = Await JsonDocument.ParseAsync(stream, cancellationToken:=cancellationToken)
-                            If document.RootElement.ValueKind <> JsonValueKind.Array Then
-                                Continue For
-                            End If
-                            For Each item In document.RootElement.EnumerateArray()
-                                Dim model = ParseModel(item)
-                                If model IsNot Nothing AndAlso Not byId.ContainsKey(model.RepoId) Then
-                                    byId(model.RepoId) = model
+                Try
+                    Using response = Await _httpClient.GetAsync(url, cancellationToken)
+                        If response.StatusCode = Net.HttpStatusCode.TooManyRequests Then
+                            lastError = New HttpRequestException("Hugging Face API rate limit was reached.")
+                            Await DelayForRetryAfterAsync(response, cancellationToken)
+                            Continue For
+                        End If
+
+                        response.EnsureSuccessStatusCode()
+                        Using stream = Await response.Content.ReadAsStreamAsync(cancellationToken)
+                            Using document = Await JsonDocument.ParseAsync(stream, cancellationToken:=cancellationToken)
+                                If document.RootElement.ValueKind <> JsonValueKind.Array Then
+                                    Continue For
                                 End If
-                            Next
+                                For Each item In document.RootElement.EnumerateArray()
+                                    Dim model = ParseModel(item)
+                                    If model IsNot Nothing AndAlso Not byId.ContainsKey(model.RepoId) Then
+                                        byId(model.RepoId) = model
+                                    End If
+                                Next
+                            End Using
                         End Using
                     End Using
-                End Using
+                Catch ex As OperationCanceledException When cancellationToken.IsCancellationRequested
+                    Throw
+                Catch ex As Exception
+                    lastError = ex
+                End Try
             Next
 
-            Return byId.Values.Where(Function(m) m.ParameterCountB > 0).ToList()
+            Dim result = byId.Values.Where(Function(m) m.ParameterCountB > 0).ToList()
+            If result.Count = 0 AndAlso lastError IsNot Nothing Then Throw lastError
+            Return result
+        End Function
+
+        Private Shared Async Function DelayForRetryAfterAsync(response As HttpResponseMessage, cancellationToken As CancellationToken) As Task
+            Dim delay = response.Headers.RetryAfter?.Delta
+            If Not delay.HasValue AndAlso response.Headers.RetryAfter?.Date.HasValue Then
+                delay = response.Headers.RetryAfter.Date.Value - DateTimeOffset.UtcNow
+            End If
+
+            If delay.HasValue AndAlso delay.Value > TimeSpan.Zero Then
+                Await Task.Delay(TimeSpan.FromMilliseconds(Math.Min(delay.Value.TotalMilliseconds, 3000)), cancellationToken)
+            End If
         End Function
 
         Private Shared Function ParseModel(item As JsonElement) As ModelInfo

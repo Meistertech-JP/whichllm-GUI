@@ -33,17 +33,45 @@ Namespace Services
             If Not File.Exists(CacheFile) Then
                 Return Nothing
             End If
-            Using stream = File.OpenRead(CacheFile)
-                Dim value = Await JsonSerializer.DeserializeAsync(Of T)(stream, Options, cancellationToken)
-                Return value
-            End Using
+            Try
+                Using stream = File.OpenRead(CacheFile)
+                    Dim value = Await JsonSerializer.DeserializeAsync(Of T)(stream, Options, cancellationToken)
+                    Return value
+                End Using
+            Catch ex As JsonException
+                Return Nothing
+            Catch ex As IOException
+                Return Nothing
+            Catch ex As UnauthorizedAccessException
+                Return Nothing
+            End Try
         End Function
 
         Protected Async Function SaveValueAsync(value As T, Optional cancellationToken As CancellationToken = Nothing) As Task
             Directory.CreateDirectory(Path.GetDirectoryName(CacheFile))
-            Using stream = File.Create(CacheFile)
-                Await JsonSerializer.SerializeAsync(stream, value, Options, cancellationToken)
-            End Using
+            Dim tempFile = CacheFile & "." & Guid.NewGuid().ToString("N") & ".tmp"
+            Try
+                Using stream = File.Create(tempFile)
+                    Await JsonSerializer.SerializeAsync(stream, value, Options, cancellationToken)
+                End Using
+
+                If File.Exists(CacheFile) Then
+                    Try
+                        File.Replace(tempFile, CacheFile, Nothing, ignoreMetadataErrors:=True)
+                    Catch ex As IOException
+                        File.Move(tempFile, CacheFile, overwrite:=True)
+                    End Try
+                Else
+                    File.Move(tempFile, CacheFile)
+                End If
+            Finally
+                If File.Exists(tempFile) Then
+                    Try
+                        File.Delete(tempFile)
+                    Catch
+                    End Try
+                End If
+            End Try
         End Function
     End Class
 

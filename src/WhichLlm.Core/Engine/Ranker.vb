@@ -161,7 +161,9 @@ Namespace Engine
         Private Shared Function PassesFit(fitType As String, options As RankingOptions) As Boolean
             If options.CpuOnly Then Return fitType = "cpu_only"
             Select Case options.Fit.ToLowerInvariant()
-                Case "gpu", "full-gpu"
+                Case "gpu"
+                    Return fitType = "full_gpu" OrElse fitType = "partial_offload"
+                Case "full-gpu"
                     Return fitType = "full_gpu"
                 Case Else
                     Return fitType = "full_gpu" OrElse fitType = "partial_offload" OrElse fitType = "cpu_only"
