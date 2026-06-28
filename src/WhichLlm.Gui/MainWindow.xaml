@@ -172,8 +172,17 @@
                             </StackPanel>
                             <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                                 <Button Content="おすすめを探す" Command="{Binding RunRecommendationCommand}" IsDefault="True" Style="{StaticResource PrimaryButton}" ToolTip="表示中のCPU、RAM、GPU、VRAMを前提に、このPCに合うモデルを探します。"/>
-                                <Button Content="Markdown" Command="{Binding CopyMarkdownCommand}" Style="{StaticResource SecondaryButton}" ToolTip="表示中の推薦結果をMarkdown表としてコピーします。"/>
-                                <Button Content="JSON" Command="{Binding CopyJsonCommand}" Style="{StaticResource SecondaryButton}" ToolTip="表示中の推薦結果をJSONとしてコピーします。"/>
+                                <Border BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="6" Background="#FFFFFF" Margin="0,0,10,10" VerticalAlignment="Center">
+                                    <Menu Background="Transparent" Padding="0">
+                                        <MenuItem Padding="14,7" FontWeight="SemiBold" ToolTip="表示中のおすすめを、ほかのアプリに貼り付けられる形でコピーします。">
+                                            <MenuItem.Header>
+                                                <TextBlock Text="この結果をコピー  ▾"/>
+                                            </MenuItem.Header>
+                                            <MenuItem Header="一覧表としてコピー" Command="{Binding CopyMarkdownCommand}" ToolTip="見やすい表の形でコピーします。メールやメモにそのまま貼れます。"/>
+                                            <MenuItem Header="データ（JSON）としてコピー" Command="{Binding CopyJsonCommand}" ToolTip="プログラムで扱えるJSON形式でコピーします。"/>
+                                        </MenuItem>
+                                    </Menu>
+                                </Border>
                             </StackPanel>
                         </Grid>
                     </Border>
@@ -353,10 +362,18 @@
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="グラフィック" Binding="{Binding Name}" Width="2*"/>
                             <DataGridTextColumn Header="メーカー" Binding="{Binding Vendor}" Width="108"/>
-                            <DataGridTextColumn Header="専用メモリ" Binding="{Binding Vram}" Width="120"/>
-                            <DataGridTextColumn Header="使える目安" Binding="{Binding UsableVram}" Width="122"/>
-                            <DataGridTextColumn Header="帯域" Binding="{Binding Bandwidth}" Width="112"/>
-                            <DataGridTextColumn Header="種類" Binding="{Binding SharedMemory}" Width="86"/>
+                            <DataGridTextColumn Binding="{Binding Vram}" Width="120">
+                                <DataGridTextColumn.Header><TextBlock Text="専用メモリ" ToolTip="GPU専用のメモリ量（VRAM）です。モデルがここに収まるほど快適に動きます。"/></DataGridTextColumn.Header>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Binding="{Binding UsableVram}" Width="122">
+                                <DataGridTextColumn.Header><TextBlock Text="使える目安" ToolTip="OSなどの使用分を差し引いた、実際にモデルに使えるメモリの目安です。"/></DataGridTextColumn.Header>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Binding="{Binding Bandwidth}" Width="120">
+                                <DataGridTextColumn.Header><TextBlock Text="メモリ速度" ToolTip="GPUメモリの速さ（GB/s）です。大きいほど生成が速くなりやすいです。"/></DataGridTextColumn.Header>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Binding="{Binding SharedMemory}" Width="92">
+                                <DataGridTextColumn.Header><TextBlock Text="種類" ToolTip="「専用」はGPU独自のメモリ、「共有」はメインメモリと共用するタイプです。"/></DataGridTextColumn.Header>
+                            </DataGridTextColumn>
                             <DataGridTextColumn Header="メモ" Binding="{Binding Notes}" Width="2*"/>
                         </DataGrid.Columns>
                     </DataGrid>
@@ -516,9 +533,9 @@
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
-                            <TextBlock Text="キャッシュ" Style="{StaticResource FieldLabel}" ToolTip="取得したモデル情報とベンチマーク情報を保存する場所です。"/>
+                            <TextBlock Text="データの保存場所" Style="{StaticResource FieldLabel}" ToolTip="取得したモデル情報とベンチマーク情報を保存する場所です。"/>
                             <TextBox Grid.Column="1" Text="{Binding CachePath, Mode=OneWay}" IsReadOnly="True"/>
-                            <TextBlock Grid.Row="1" Text="HF_ENDPOINT" Style="{StaticResource FieldLabel}" ToolTip="Hugging Face互換の接続先です。通常はこのままで使います。"/>
+                            <TextBlock Grid.Row="1" Text="接続先（通常は変更不要）" Style="{StaticResource FieldLabel}" ToolTip="モデル情報の取得先（HF_ENDPOINT）です。通常はこのままで使います。"/>
                             <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding HfEndpoint, Mode=OneWay}" IsReadOnly="True"/>
                         </Grid>
                     </Border>
