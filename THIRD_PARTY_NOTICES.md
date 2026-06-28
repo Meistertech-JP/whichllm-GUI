@@ -1,5 +1,7 @@
 # Third-Party Notices
 
+whichllm GUI itself is licensed under the MIT License. See `LICENSE`.
+
 This project is inspired by and partially reimplements behavior from:
 
 ## whichllm

@@ -110,9 +110,11 @@ src\WhichLlm.Gui\bin\Release\net10.0-windows\win-x64\publish\
 
 ## 参照元とライセンス
 
+whichllm GUI 本体は MIT License で公開します。詳細は [LICENSE](LICENSE) を参照してください。
+
 このGUIは、次のプロジェクトを参考にしています。
 
 - whichllm: https://github.com/Andyyyy64/whichllm
 - llmfit: https://github.com/AlexsJones/llmfit
 
-詳細は [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) を参照してください。
+参照元プロジェクトの著作権表示は [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) を参照してください。

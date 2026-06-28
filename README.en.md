@@ -115,9 +115,11 @@ src\WhichLlm.Gui\bin\Release\net10.0-windows\win-x64\publish\
 
 ## Credits and License
 
+whichllm GUI itself is released under the MIT License. See [LICENSE](LICENSE).
+
 This GUI is inspired by:
 
 - whichllm: https://github.com/Andyyyy64/whichllm
 - llmfit: https://github.com/AlexsJones/llmfit
 
-See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for details.
+See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for upstream copyright notices.
