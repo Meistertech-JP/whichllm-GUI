@@ -397,6 +397,7 @@ Namespace Services
                 .OverrideBandwidthGbps = options.OverrideBandwidthGbps,
                 .OverrideRamBandwidthGbps = options.OverrideRamBandwidthGbps,
                 .GpuIndex = options.GpuIndex,
+                .GpuGroupKey = options.GpuGroupKey,
                 .VramHeadroom = options.VramHeadroom,
                 .RamBudget = options.RamBudget
             }

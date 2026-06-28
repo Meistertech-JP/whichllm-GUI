@@ -191,6 +191,41 @@ Namespace WhichLlm.Tests
         End Sub
 
         <TestMethod>
+        Public Sub VramEstimatorDoesNotCombineMixedAmdArchitecturesForSingleModelSplit()
+            Dim estimator As IVramEstimator = New VramEstimator()
+            Dim hardware = HardwareWithGpus(New List(Of GpuInfo) From {
+                TestGpu("Radeon VII", "AMD", 15),
+                TestGpu("Radeon VII", "AMD", 15),
+                TestGpu("RX 6800", "AMD", 15),
+                TestGpu("RX 6800", "AMD", 15)
+            })
+            Dim required = 40L * 1024 * 1024 * 1024
+
+            Dim fit = estimator.ClassifyFit(required, hardware, New RankingOptions())
+
+            Assert.AreNotEqual("full_gpu", fit.FitType)
+            Assert.IsTrue(fit.UsesMultiGpu)
+            Assert.IsTrue(fit.VramAvailableBytes < 30L * 1024 * 1024 * 1024)
+            Assert.IsTrue(fit.Notes.Any(Function(note) note.Contains("Mixed GPU generations", StringComparison.Ordinal)))
+        End Sub
+
+        <TestMethod>
+        Public Sub VramEstimatorAllowsMixedNvidiaCudaGroupConservatively()
+            Dim estimator As IVramEstimator = New VramEstimator()
+            Dim hardware = HardwareWithGpus(New List(Of GpuInfo) From {
+                TestGpu("RTX 3090", "NVIDIA", 22),
+                TestGpu("RTX 4090", "NVIDIA", 23)
+            })
+            Dim required = 30L * 1024 * 1024 * 1024
+
+            Dim fit = estimator.ClassifyFit(required, hardware, New RankingOptions())
+
+            Assert.AreEqual("full_gpu", fit.FitType)
+            Assert.IsTrue(fit.UsesMultiGpu)
+            Assert.IsTrue(fit.VramAvailableBytes < 40L * 1024 * 1024 * 1024)
+        End Sub
+
+        <TestMethod>
         Public Sub VramEstimatorAddsCompatibilityWarningsForOldNvidiaComputeCapability()
             Dim estimator As IVramEstimator = New VramEstimator()
             Dim hardware = HardwareWithGpu("GTX 780", 3)
@@ -532,6 +567,30 @@ Namespace WhichLlm.Tests
                         .MemoryBandwidthGbps = 1000
                     }
                 }
+            }
+        End Function
+
+        Private Shared Function HardwareWithGpus(gpus As List(Of GpuInfo)) As HardwareInfo
+            Return New HardwareInfo With {
+                .CpuName = "Test CPU",
+                .PhysicalCores = 8,
+                .SupportsAvx2 = True,
+                .TotalRamBytes = 64L * 1024 * 1024 * 1024,
+                .AvailableRamBytes = 48L * 1024 * 1024 * 1024,
+                .RamBudgetBytes = 48L * 1024 * 1024 * 1024,
+                .FreeDiskBytes = 500L * 1024 * 1024 * 1024,
+                .Gpus = gpus
+            }
+        End Function
+
+        Private Shared Function TestGpu(name As String, vendor As String, usableVramGb As Double) As GpuInfo
+            Dim bytes = CLng(usableVramGb * 1024 * 1024 * 1024)
+            Return New GpuInfo With {
+                .Name = name,
+                .Vendor = vendor,
+                .VramBytes = bytes,
+                .UsableVramBytes = bytes,
+                .MemoryBandwidthGbps = 1000
             }
         End Function
 

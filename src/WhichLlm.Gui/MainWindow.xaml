@@ -226,6 +226,10 @@
                                     <TextBlock Text="GPUを試算" Style="{StaticResource FieldLabel}" ToolTip="別のGPUを買った場合などを試す入力です。例: RTX 4070, 2x RTX 4090"/>
                                     <ComboBox IsEditable="True" IsTextSearchEnabled="False" StaysOpenOnEdit="True" ItemsSource="{Binding GpuOptions}" Text="{Binding SimulatedGpuText, UpdateSourceTrigger=PropertyChanged}" SelectionChanged="EditableSuggestionComboBox_SelectionChanged" Width="240"/>
                                 </StackPanel>
+                                <StackPanel>
+                                    <TextBlock Text="GPUグループ" Style="{StaticResource FieldLabel}" ToolTip="複数GPU環境で、単一モデルの分割に使うGPUグループを選びます。混在GPUでは世代が違うGPUを自動合算しません。"/>
+                                    <ComboBox ItemsSource="{Binding GpuGroupOptions}" DisplayMemberPath="Label" SelectedItem="{Binding SelectedGpuGroupOption, Mode=TwoWay}" Width="300"/>
+                                </StackPanel>
                                 <CheckBox Content="CPUのみ" IsChecked="{Binding CpuOnly}" ToolTip="GPUを使わない前提で候補を探します。"/>
                                 <CheckBox Content="再取得" IsChecked="{Binding Refresh}" ToolTip="保存済みデータを使わず、モデル情報を取り直します。"/>
                             </WrapPanel>

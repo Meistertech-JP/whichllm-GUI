@@ -19,7 +19,7 @@ It intentionally does not run, download, or chat with models.
 
 ## Quick Start
 
-1. Download `whichllm-gui-v0.4.0-win-x64.zip` from Releases.
+1. Download `whichllm-gui-v0.4.1-win-x64.zip` from Releases.
 2. Extract the ZIP anywhere.
 3. Run `WhichLlm.Gui.exe`.
 4. Press `Find Recommendations` on the first screen.

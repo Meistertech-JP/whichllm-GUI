@@ -21,6 +21,7 @@ Namespace Dto
         Public Property OverrideBandwidthGbps As Double?
         Public Property OverrideRamBandwidthGbps As Double?
         Public Property GpuIndex As Integer?
+        Public Property GpuGroupKey As String = "auto"
         Public Property VramHeadroom As String = "auto"
         Public Property RamBudget As String = "available"
     End Class

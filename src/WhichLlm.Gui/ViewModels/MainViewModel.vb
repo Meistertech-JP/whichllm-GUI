@@ -32,6 +32,7 @@ Namespace ViewModels
         Private _selectedEvidence As String = "base"
         Private _selectedFit As String = "any"
         Private _selectedSpeed As String = "any"
+        Private _selectedGpuGroup As String = "auto"
         Private _quantText As String = ""
         Private _simulatedGpuText As String = ""
         Private _planQuery As String = "llama 3 8b"
@@ -59,7 +60,9 @@ Namespace ViewModels
             EvidenceModes = New ObservableCollection(Of ComboOption)()
             FitModes = New ObservableCollection(Of ComboOption)()
             SpeedModes = New ObservableCollection(Of ComboOption)()
+            GpuGroupOptions = New ObservableCollection(Of ComboOption)()
             RefreshLocalizedChoiceLists()
+            RefreshGpuGroupOptions(Nothing)
 
             _allGpuOptions = _service.AllGpuNames().ToList()
             QuantOptions = New ObservableCollection(Of String)()
@@ -198,6 +201,7 @@ Namespace ViewModels
         Public ReadOnly Property EvidenceModes As ObservableCollection(Of ComboOption)
         Public ReadOnly Property FitModes As ObservableCollection(Of ComboOption)
         Public ReadOnly Property SpeedModes As ObservableCollection(Of ComboOption)
+        Public ReadOnly Property GpuGroupOptions As ObservableCollection(Of ComboOption)
         Public ReadOnly Property LanguageOptions As ObservableCollection(Of ComboOption)
         Public ReadOnly Property QuantOptions As ObservableCollection(Of String)
         Public ReadOnly Property PlanQuantOptions As ObservableCollection(Of String)
@@ -301,6 +305,27 @@ Namespace ViewModels
             Set(value As ComboOption)
                 If value Is Nothing Then Return
                 SelectedSpeed = value.Value
+            End Set
+        End Property
+
+        Public Property SelectedGpuGroup As String
+            Get
+                Return _selectedGpuGroup
+            End Get
+            Set(value As String)
+                If SetProperty(_selectedGpuGroup, NormalizeChoice(value, "auto")) Then
+                    OnPropertyChanged(NameOf(SelectedGpuGroupOption))
+                End If
+            End Set
+        End Property
+
+        Public Property SelectedGpuGroupOption As ComboOption
+            Get
+                Return OptionFor(GpuGroupOptions, SelectedGpuGroup)
+            End Get
+            Set(value As ComboOption)
+                If value Is Nothing Then Return
+                SelectedGpuGroup = value.Value
             End Set
         End Property
 
@@ -504,6 +529,7 @@ Namespace ViewModels
                 For Each gpu In hardware.Gpus
                     HardwareRows.Add(New HardwareGpuRow(gpu))
                 Next
+                RefreshGpuGroupOptions(hardware)
                 HardwareSummary = BuildHardwareSummary(hardware)
                 RecommendationHardwareSummary = BuildHardwareInline(hardware)
                 StatusMessage = L("ハードウェア検出完了", "Hardware detection complete")
@@ -605,6 +631,7 @@ Namespace ViewModels
                 .UseCase = NormalizeChoice(SelectedUseCase, "general"),
                 .Evidence = NormalizeChoice(SelectedEvidence, "base"),
                 .Refresh = Refresh,
+                .GpuGroupKey = NormalizeChoice(SelectedGpuGroup, "auto"),
                 .VramHeadroom = If(String.IsNullOrWhiteSpace(VramHeadroomText), "auto", VramHeadroomText.Trim()),
                 .RamBudget = If(String.IsNullOrWhiteSpace(RamBudgetText), "available", RamBudgetText.Trim())
             }
@@ -620,6 +647,7 @@ Namespace ViewModels
             End If
 
             options.SimulatedGpuInputs.AddRange(SplitInputs(SimulatedGpuText))
+            If options.SimulatedGpuInputs.Count > 0 Then options.GpuGroupKey = "auto"
             If Not String.IsNullOrWhiteSpace(VramOverrideText) Then
                 options.OverrideVramBytes = ParseGbOrBytes(VramOverrideText)
             End If
@@ -705,6 +733,7 @@ Namespace ViewModels
                 New ComboOption With {.Label = L("普段使い向け (10 tok/s以上)", "Everyday use (10+ tok/s)"), .Value = "usable"},
                 New ComboOption With {.Label = L("高速応答 (30 tok/s以上)", "Fast response (30+ tok/s)"), .Value = "fast"}
             })
+            RefreshGpuGroupOptions(_lastHardware)
             OnPropertyChanged(NameOf(SelectedUseCase))
             OnPropertyChanged(NameOf(SelectedEvidence))
             OnPropertyChanged(NameOf(SelectedFit))
@@ -713,7 +742,52 @@ Namespace ViewModels
             OnPropertyChanged(NameOf(SelectedEvidenceOption))
             OnPropertyChanged(NameOf(SelectedFitOption))
             OnPropertyChanged(NameOf(SelectedSpeedOption))
+            OnPropertyChanged(NameOf(SelectedGpuGroupOption))
         End Sub
+
+        Private Sub RefreshGpuGroupOptions(hardware As HardwareInfo)
+            Dim options As New List(Of ComboOption) From {
+                New ComboOption With {.Label = L("自動（最大の互換グループ）", "Auto (largest compatible group)"), .Value = "auto"}
+            }
+
+            If hardware IsNot Nothing AndAlso hardware.Gpus.Count > 1 Then
+                Dim groups = hardware.Gpus.
+                    Where(Function(g) g IsNot Nothing AndAlso Not g.IsSharedMemory AndAlso Math.Max(0, g.EffectiveVramBytes) > 0).
+                    GroupBy(Function(g) VramEstimator.MultiGpuCompatibilityKey(g), StringComparer.OrdinalIgnoreCase).
+                    Select(Function(group) New With {.Key = group.Key, .Gpus = group.ToList()}).
+                    OrderByDescending(Function(group) group.Gpus.Sum(Function(g) Math.Max(0, g.EffectiveVramBytes))).
+                    ThenByDescending(Function(group) group.Gpus.Count).
+                    ThenByDescending(Function(group) group.Gpus.Sum(Function(g) If(g.MemoryBandwidthGbps, 0))).
+                    ThenBy(Function(group) group.Key).
+                    ToList()
+
+                For Each group In groups
+                    options.Add(New ComboOption With {
+                        .Label = BuildGpuGroupLabel(group.Gpus),
+                        .Value = group.Key
+                    })
+                Next
+            End If
+
+            ReplaceOptions(GpuGroupOptions, options)
+            If Not GpuGroupOptions.Any(Function(optionItem) optionItem.Value.Equals(SelectedGpuGroup, StringComparison.OrdinalIgnoreCase)) Then
+                SelectedGpuGroup = "auto"
+            Else
+                OnPropertyChanged(NameOf(SelectedGpuGroupOption))
+            End If
+        End Sub
+
+        Private Shared Function BuildGpuGroupLabel(gpus As IReadOnlyList(Of GpuInfo)) As String
+            If gpus Is Nothing OrElse gpus.Count = 0 Then Return AppText.Text("GPUグループ", "GPU group")
+            Dim counts = gpus.
+                GroupBy(Function(g) If(g.Name, ""), StringComparer.OrdinalIgnoreCase).
+                Select(Function(group) If(group.Count() > 1, $"{group.Key} x{group.Count()}", group.Key)).
+                ToList()
+            Dim rawBytes = gpus.Sum(Function(g) Math.Max(0, g.VramBytes))
+            Dim key = VramEstimator.MultiGpuCompatibilityKey(gpus(0))
+            Dim suffix = If(key.Contains(":", StringComparison.Ordinal), key.Split(":"c).Last(), key)
+            Return $"{String.Join(" + ", counts)} ({suffix}, {Formatters.FormatBytes(rawBytes)})"
+        End Function
 
         Private Shared Sub ReplaceOptions(target As ObservableCollection(Of ComboOption), values As IEnumerable(Of ComboOption))
             If target Is Nothing Then Return

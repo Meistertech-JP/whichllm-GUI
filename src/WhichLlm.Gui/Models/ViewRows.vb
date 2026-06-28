@@ -229,7 +229,16 @@ Namespace Models
                     Return L("CPUだけで動かす速度は計画用の目安です。", "CPU-only speed is a planning estimate.")
                 Case "Multi-GPU speed depends on backend split mode."
                     Return L("複数GPUでは、使う実行環境の分割方法で速度が変わります。", "Multi-GPU speed depends on the backend split mode.")
+                Case "Multi-GPU fit uses conservative effective VRAM."
+                    Return L("複数GPUでは、単純合算ではなく控えめなGPUメモリ目安を使っています。", "Multi-GPU fit uses conservative effective VRAM.")
+                Case "Mixed GPU generations detected; only the largest compatible GPU group is counted for a single-model split."
+                    Return L("世代の違うGPUが混在しているため、単一モデルの分割では最大の互換GPUグループだけを数えています。", "Mixed GPU generations detected; only the largest compatible GPU group is counted for a single-model split.")
+                Case "Mixed GPU generations detected; GPU memory is not combined for a single-model split."
+                    Return L("世代の違うGPUが混在しているため、単一モデルの分割ではGPUメモリを合算していません。", "Mixed GPU generations detected; GPU memory is not combined for a single-model split.")
                 Case Else
+                    If note.StartsWith("Selected GPU group:", StringComparison.OrdinalIgnoreCase) Then
+                        Return L("選択したGPUグループで計算しています。", "Using the selected GPU group.")
+                    End If
                     Return note
             End Select
         End Function

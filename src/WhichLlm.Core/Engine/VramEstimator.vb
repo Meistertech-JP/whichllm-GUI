@@ -144,18 +144,31 @@ Namespace Engine
                 Return decision
             End If
 
-            Dim usableDedicated = hardware.Gpus.Where(Function(g) Not g.IsSharedMemory OrElse hardware.Gpus.Count = 1).Select(Function(g) Math.Max(0, g.EffectiveVramBytes)).ToList()
+            Dim usableDedicated = hardware.Gpus.
+                Where(Function(g) Not g.IsSharedMemory OrElse hardware.Gpus.Count = 1).
+                Where(Function(g) Math.Max(0, g.EffectiveVramBytes) > 0).
+                ToList()
             Dim effectiveGpuBytes As Long = 0
             If usableDedicated.Count = 1 Then
-                effectiveGpuBytes = usableDedicated(0)
+                effectiveGpuBytes = usableDedicated(0).EffectiveVramBytes
             ElseIf usableDedicated.Count > 1 Then
-                Dim rawTotal = usableDedicated.Sum()
-                Dim homogeneous = usableDedicated.Distinct().Count() = 1
+                Dim compatibleGroup = SelectCompatibleMultiGpuGroup(usableDedicated, options.GpuGroupKey, decision.Notes)
+                Dim rawTotal = compatibleGroup.Sum(Function(g) Math.Max(0, g.EffectiveVramBytes))
+                Dim homogeneous = compatibleGroup.Select(Function(g) MultiGpuModelKey(g)).Distinct(StringComparer.OrdinalIgnoreCase).Count() = 1 AndAlso compatibleGroup.Select(Function(g) Math.Max(0, g.EffectiveVramBytes)).Distinct().Count() = 1
                 Dim factor = If(homogeneous, 0.88R, 0.75R)
-                effectiveGpuBytes = CLng(rawTotal * factor)
-                decision.UsesMultiGpu = True
-                decision.MultiGpuEffectiveVramBytes = effectiveGpuBytes
-                decision.Notes.Add("Multi-GPU fit uses conservative effective VRAM.")
+                If compatibleGroup.Count > 1 Then
+                    effectiveGpuBytes = CLng(rawTotal * factor)
+                    decision.UsesMultiGpu = True
+                    decision.MultiGpuEffectiveVramBytes = effectiveGpuBytes
+                    decision.Notes.Add("Multi-GPU fit uses conservative effective VRAM.")
+                    If compatibleGroup.Count < usableDedicated.Count Then
+                        decision.Notes.Add("Mixed GPU generations detected; only the largest compatible GPU group is counted for a single-model split.")
+                    End If
+                Else
+                    Dim bestGpu = compatibleGroup.First()
+                    effectiveGpuBytes = Math.Max(0, bestGpu.EffectiveVramBytes)
+                    decision.Notes.Add("Mixed GPU generations detected; GPU memory is not combined for a single-model split.")
+                End If
             End If
             decision.VramAvailableBytes = effectiveGpuBytes
 
@@ -183,6 +196,67 @@ Namespace Engine
             decision.IsRunnable = False
             decision.Notes.Add("Required memory exceeds available GPU/RAM or disk budget.")
             Return decision
+        End Function
+
+        Private Shared Function SelectCompatibleMultiGpuGroup(gpus As IEnumerable(Of GpuInfo), selectedGroupKey As String, notes As List(Of String)) As List(Of GpuInfo)
+            Dim gpuList = gpus.Where(Function(g) g IsNot Nothing).ToList()
+            If gpuList.Count <= 1 Then Return gpuList
+
+            Dim groups = gpuList.
+                GroupBy(Function(g) MultiGpuCompatibilityKey(g), StringComparer.OrdinalIgnoreCase).
+                Select(Function(group) group.ToList()).
+                OrderByDescending(Function(group) group.Sum(Function(g) Math.Max(0, g.EffectiveVramBytes))).
+                ThenByDescending(Function(group) group.Count).
+                ThenByDescending(Function(group) group.Sum(Function(g) If(g.MemoryBandwidthGbps, 0))).
+                ToList()
+
+            If Not String.IsNullOrWhiteSpace(selectedGroupKey) AndAlso
+                Not selectedGroupKey.Equals("auto", StringComparison.OrdinalIgnoreCase) Then
+                Dim selected = groups.FirstOrDefault(Function(group) MultiGpuCompatibilityKey(group(0)).Equals(selectedGroupKey, StringComparison.OrdinalIgnoreCase))
+                If selected IsNot Nothing Then
+                    notes.Add("Selected GPU group: " & selectedGroupKey)
+                    Return selected
+                End If
+                notes.Add("Selected GPU group was not found; using the largest compatible group.")
+            End If
+
+            Return groups.First()
+        End Function
+
+        Public Shared Function MultiGpuCompatibilityKey(gpu As GpuInfo) As String
+            Dim vendor = If(gpu?.Vendor, "").Trim().ToLowerInvariant()
+            If vendor = "nvidia" Then Return "nvidia:cuda"
+            Dim architecture = NormalizeGpuArchitecture(gpu)
+            If architecture.Length > 0 Then Return vendor & ":" & architecture
+            Return vendor & ":" & MultiGpuModelKey(gpu)
+        End Function
+
+        Private Shared Function MultiGpuModelKey(gpu As GpuInfo) As String
+            Return System.Text.RegularExpressions.Regex.Replace(If(gpu?.Name, "").ToLowerInvariant(), "[^a-z0-9]+", "")
+        End Function
+
+        Private Shared Function NormalizeGpuArchitecture(gpu As GpuInfo) As String
+            Dim rawArch = If(gpu?.ComputeCapability, "").Trim().ToLowerInvariant()
+            If rawArch.Length > 0 Then Return rawArch
+
+            Dim name = If(gpu?.Name, "").ToLowerInvariant()
+            Dim vendor = If(gpu?.Vendor, "").Trim().ToLowerInvariant()
+            If vendor = "amd" Then
+                If name.Contains("radeon vii", StringComparison.Ordinal) OrElse name.Contains("vega 20", StringComparison.Ordinal) OrElse
+                    name.Contains("mi50", StringComparison.Ordinal) OrElse name.Contains("mi60", StringComparison.Ordinal) Then Return "gfx906"
+                If name.Contains("rx 69", StringComparison.Ordinal) OrElse name.Contains("rx 68", StringComparison.Ordinal) OrElse
+                    name.Contains("navi 21", StringComparison.Ordinal) Then Return "gfx1030"
+                If name.Contains("rx 67", StringComparison.Ordinal) OrElse name.Contains("navi 22", StringComparison.Ordinal) Then Return "gfx1031"
+                If name.Contains("rx 66", StringComparison.Ordinal) OrElse name.Contains("rx 6500", StringComparison.Ordinal) OrElse
+                    name.Contains("rx 6400", StringComparison.Ordinal) OrElse name.Contains("navi 23", StringComparison.Ordinal) OrElse
+                    name.Contains("navi 24", StringComparison.Ordinal) Then Return "gfx1032"
+                If name.Contains("rx 79", StringComparison.Ordinal) OrElse name.Contains("navi 31", StringComparison.Ordinal) Then Return "gfx1100"
+                If name.Contains("rx 78", StringComparison.Ordinal) OrElse name.Contains("rx 77", StringComparison.Ordinal) OrElse
+                    name.Contains("navi 32", StringComparison.Ordinal) Then Return "gfx1101"
+                If name.Contains("rx 76", StringComparison.Ordinal) OrElse name.Contains("navi 33", StringComparison.Ordinal) Then Return "gfx1102"
+            End If
+
+            Return ""
         End Function
 
         Private Shared Function CompatibilityWarnings(hardware As HardwareInfo) As IEnumerable(Of String)

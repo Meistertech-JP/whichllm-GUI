@@ -605,6 +605,7 @@ Namespace Services
             Dim catalogGpu = _gpuCatalog.Resolve(name)
             catalogGpu.Name = name
             catalogGpu.Vendor = If(catalogGpu.Vendor = "Unknown", GuessVendor(name), catalogGpu.Vendor)
+            catalogGpu.RuntimeVersion = "wmi"
             If dedicatedRam > 0 AndAlso dedicatedRam < Long.MaxValue Then
                 catalogGpu.VramBytes = Math.Max(catalogGpu.VramBytes, dedicatedRam)
                 catalogGpu.UsableVramBytes = catalogGpu.VramBytes
@@ -642,7 +643,15 @@ Namespace Services
 
         Private Shared Sub AddDistinctGpu(target As List(Of GpuInfo), gpu As GpuInfo)
             If gpu Is Nothing OrElse String.IsNullOrWhiteSpace(gpu.Name) Then Return
-            If target.Any(Function(existing) SameGpuName(existing.Name, gpu.Name)) Then Return
+            Dim sameName = target.Where(Function(existing) SameGpuName(existing.Name, gpu.Name)).ToList()
+            If sameName.Count = 0 Then
+                target.Add(gpu)
+                Return
+            End If
+
+            Dim runtime = If(gpu.RuntimeVersion, "").Trim()
+            If runtime.Length = 0 Then Return
+            If sameName.Any(Function(existing) Not runtime.Equals(If(existing.RuntimeVersion, "").Trim(), StringComparison.OrdinalIgnoreCase)) Then Return
             target.Add(gpu)
         End Sub
 
