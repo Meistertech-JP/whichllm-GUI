@@ -459,6 +459,36 @@ Namespace WhichLlm.Tests
             Assert.IsTrue(qwen.Score > 45.0R AndAlso qwen.Score < 95.0R, $"scrape clobbered curated value: {qwen.Score}")
         End Function
 
+        <TestMethod>
+        Public Sub InferActiveParamsBReadsMoeActiveNotation()
+            ' "<total>B-A<active>B" sparse-MoE names must yield the active count so speed
+            ' estimates use the active (~4B) compute, not the full 26B. Regression for the
+            ' gemma-4-26B-A4B speed-estimate gap.
+            Assert.AreEqual(4.0R, HuggingFaceClient.InferActiveParamsB("google/gemma-4-26b-a4b-it", 26).Value, 0.0001R)
+            Assert.AreEqual(22.0R, HuggingFaceClient.InferActiveParamsB("Qwen/Qwen3-235B-A22B-Instruct-2507", 235).Value, 0.0001R)
+            Assert.AreEqual(3.0R, HuggingFaceClient.InferActiveParamsB("Qwen/Qwen3-Coder-30B-A3B-Instruct", 30).Value, 0.0001R)
+            ' Dense models keep no active-param override.
+            Assert.IsFalse(HuggingFaceClient.InferActiveParamsB("meta-llama/Llama-3.1-8B-Instruct", 8).HasValue)
+        End Sub
+
+        <TestMethod>
+        Public Sub PerformanceEstimatorUsesActiveParamsForMoeSpeed()
+            ' A 26B-A4B MoE must be estimated several times faster than a dense 26B, because
+            ' only the ~4B active experts drive the bandwidth-bound token rate.
+            Dim estimator As IPerformanceEstimator = New PerformanceEstimator()
+            Dim hardware = HardwareWithGpu("RX 6900 XT", 16)
+            Dim modelVariant = New ModelVariant With {.Quantization = "Q4_K_M"}
+            Dim fit = New FitDecision With {.FitType = "full_gpu", .VramRequiredBytes = 9L * 1024 * 1024 * 1024, .VramAvailableBytes = 15L * 1024 * 1024 * 1024}
+
+            Dim moe = New ModelInfo With {.RepoId = "google/gemma-4-26b-a4b-it", .ParameterCountB = 26, .ActiveParameterCountB = 4}
+            Dim dense = New ModelInfo With {.RepoId = "dense/model-26b", .ParameterCountB = 26}
+
+            Dim moeSpeed = estimator.Estimate(moe, modelVariant, fit, hardware).TokPerSec
+            Dim denseSpeed = estimator.Estimate(dense, modelVariant, fit, hardware).TokPerSec
+
+            Assert.IsTrue(moeSpeed > denseSpeed * 3.0R, $"MoE active-param speed not applied: moe={moeSpeed}, dense={denseSpeed}")
+        End Sub
+
 
         <TestMethod>
         Public Async Function HuggingFaceClientFetchesRecentlyUpdatedAndTrendingModels() As Task

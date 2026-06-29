@@ -272,8 +272,21 @@ Namespace Services
             Return 0
         End Function
 
-        Private Shared Function InferActiveParamsB(id As String, paramsB As Double) As Double?
+        Friend Shared Function InferActiveParamsB(id As String, paramsB As Double) As Double?
             Dim text = id.ToLowerInvariant()
+
+            ' Sparse MoE models encode active params as "<total>B-A<active>B" in the name,
+            ' e.g. gemma-4-26b-a4b, Qwen3-235B-A22B, Qwen3-Coder-30B-A3B. Generation speed
+            ' is governed by the active (not total) parameter count, so honor this explicit
+            ' signal before the coarser family heuristics below.
+            Dim moeMatch = Regex.Match(text, "(\d+(?:\.\d+)?)b-a(\d+(?:\.\d+)?)b")
+            If moeMatch.Success Then
+                Dim active As Double
+                If Double.TryParse(moeMatch.Groups(2).Value, NumberStyles.Float, CultureInfo.InvariantCulture, active) AndAlso active > 0 AndAlso active < paramsB Then
+                    Return active
+                End If
+            End If
+
             If text.Contains("mixtral", StringComparison.Ordinal) AndAlso paramsB >= 40 Then Return Math.Max(12.0R, paramsB / 4)
             If text.Contains("deepseek", StringComparison.Ordinal) AndAlso paramsB >= 100 Then Return Math.Min(40.0R, paramsB / 10)
             If text.Contains("moe", StringComparison.Ordinal) AndAlso paramsB >= 20 Then Return paramsB / 4
