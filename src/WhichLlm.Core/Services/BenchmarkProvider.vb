@@ -22,8 +22,18 @@ Namespace Services
 
         Public Sub New(cache As IBenchmarkCache, Optional httpClient As HttpClient = Nothing)
             _cache = cache
-            _httpClient = If(httpClient, New HttpClient())
-            _httpClient.Timeout = TimeSpan.FromSeconds(30)
+            If httpClient Is Nothing Then
+                ' Self-created client: bound the buffered response size so a hostile or
+                ' broken endpoint cannot exhaust memory through the GetStringAsync scrape
+                ' paths (Artificial Analysis HTML / Aider YAML). Streaming reads used for
+                ' the dataset feeds are unaffected by this cap.
+                _httpClient = New HttpClient() With {
+                    .Timeout = TimeSpan.FromSeconds(30),
+                    .MaxResponseContentBufferSize = 16L * 1024 * 1024
+                }
+            Else
+                _httpClient = httpClient
+            End If
             If Not _httpClient.DefaultRequestHeaders.UserAgent.Any() Then
                 _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("whichllm-gui/0.4")
             End If
@@ -115,7 +125,9 @@ Namespace Services
 
         Private Async Function AddOpenLlmLeaderboardAsync(target As Dictionary(Of String, BenchmarkScoreEntry), cancellationToken As CancellationToken) As Task
             Dim offset = 0
-            While offset < 1000
+            Dim pages = 0
+            While offset < 1000 AndAlso pages < 25
+                pages += 1
                 Using response = Await _httpClient.GetAsync(OpenLlmRowsUrl & "&offset=" & offset.ToString(CultureInfo.InvariantCulture), cancellationToken)
                     response.EnsureSuccessStatusCode()
                     Using stream = Await response.Content.ReadAsStreamAsync(cancellationToken)
@@ -145,7 +157,9 @@ Namespace Services
 
         Private Async Function AddArenaAsync(target As Dictionary(Of String, BenchmarkScoreEntry), cancellationToken As CancellationToken) As Task
             Dim offset = 0
-            While offset < 1000
+            Dim pages = 0
+            While offset < 1000 AndAlso pages < 25
+                pages += 1
                 Using response = Await _httpClient.GetAsync(ArenaRowsUrl & "&offset=" & offset.ToString(CultureInfo.InvariantCulture), cancellationToken)
                     response.EnsureSuccessStatusCode()
                     Using stream = Await response.Content.ReadAsStreamAsync(cancellationToken)
@@ -231,22 +245,34 @@ Namespace Services
                 AddScore(target, pair.Key, NormalizeArtificialAnalysis(pair.Value), "current", "Artificial Analysis Intelligence Index curated fallback.")
             Next
 
+            ' The site exposes no stable API, so the live scrape is best-effort and must
+            ' never overwrite the curated fallback: a misparsed token (e.g. a year, a
+            ' percentage, or a "100") would otherwise win the max-score merge and hand a
+            ' model a perfect score. It only fills models the fallback does not cover and
+            ' only accepts values inside a plausible Intelligence-Index band.
             Dim html = Await _httpClient.GetStringAsync(ArtificialAnalysisUrl, cancellationToken)
             For Each map In ArtificialAnalysisNameMap()
-                Dim idx = html.IndexOf(map.Key, StringComparison.OrdinalIgnoreCase)
-                If idx < 0 Then Continue For
-                Dim window = html.Substring(idx, Math.Min(700, html.Length - idx))
-                Dim matches = Regex.Matches(window, "(?:index|score|quality)[^0-9]{0,80}(\d+(?:\.\d+)?)", RegexOptions.IgnoreCase)
-                For Each match As Match In matches
-                    Dim raw As Double
-                    If Double.TryParse(match.Groups(1).Value, NumberStyles.Float, CultureInfo.InvariantCulture, raw) AndAlso raw > 0 AndAlso raw < 100 Then
-                        For Each hfId In map.Value
-                            AddScore(target, hfId, NormalizeArtificialAnalysis(raw), "current", "Artificial Analysis Intelligence Index live scrape.")
-                        Next
-                        Exit For
-                    End If
+                Dim raw = TryScrapeIntelligenceIndex(html, map.Key)
+                If Not raw.HasValue Then Continue For
+                For Each hfId In map.Value
+                    If target.ContainsKey(hfId) Then Continue For
+                    AddScore(target, hfId, NormalizeArtificialAnalysis(raw.Value), "current", "Artificial Analysis Intelligence Index live scrape.")
                 Next
             Next
+        End Function
+
+        Private Shared Function TryScrapeIntelligenceIndex(html As String, anchor As String) As Double?
+            If String.IsNullOrEmpty(html) OrElse String.IsNullOrEmpty(anchor) Then Return Nothing
+            Dim idx = html.IndexOf(anchor, StringComparison.OrdinalIgnoreCase)
+            If idx < 0 Then Return Nothing
+            Dim window = html.Substring(idx, Math.Min(700, html.Length - idx))
+            For Each match As Match In Regex.Matches(window, "(?:index|score|quality)[^0-9]{0,80}(\d+(?:\.\d+)?)", RegexOptions.IgnoreCase)
+                Dim raw As Double
+                If Double.TryParse(match.Groups(1).Value, NumberStyles.Float, CultureInfo.InvariantCulture, raw) AndAlso raw >= 5.0R AndAlso raw <= 90.0R Then
+                    Return raw
+                End If
+            Next
+            Return Nothing
         End Function
 
         Private Async Function AddAiderAsync(target As Dictionary(Of String, BenchmarkScoreEntry), cancellationToken As CancellationToken) As Task

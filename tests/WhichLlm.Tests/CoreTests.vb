@@ -444,6 +444,21 @@ Namespace WhichLlm.Tests
             Assert.IsFalse(benchmarks.ContainsKey("qwen3"))
         End Function
 
+        <TestMethod>
+        Public Async Function BenchmarkProviderScrapeDoesNotClobberCuratedFallback() As Task
+            ' An Artificial Analysis page that a naive parser would read as a perfect score.
+            Dim html = "Qwen3 8B intelligence index 70.0 quality score 100"
+            Dim cache = New FakeBenchmarkCache(False)
+            Dim client = New HttpClient(New StaticHttpHandler(HttpStatusCode.OK, html))
+            Dim provider As IBenchmarkProvider = New BenchmarkProvider(cache, client)
+
+            Dim benchmarks = Await provider.LoadBenchmarksAsync(True)
+
+            ' The brittle scrape must never overwrite the curated/LiveBench value with a bogus 100.
+            Dim qwen = benchmarks("Qwen/Qwen3-8B")
+            Assert.IsTrue(qwen.Score > 45.0R AndAlso qwen.Score < 95.0R, $"scrape clobbered curated value: {qwen.Score}")
+        End Function
+
 
         <TestMethod>
         Public Async Function HuggingFaceClientFetchesRecentlyUpdatedAndTrendingModels() As Task
