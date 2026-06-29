@@ -751,9 +751,13 @@ Namespace ViewModels
             }
 
             If hardware IsNot Nothing AndAlso hardware.Gpus.Count > 1 Then
+                ' Combined multi-GPU groups (same compatibility key, 2+ devices that can be
+                ' tensor-split for a single model). Single-device groups are represented by
+                ' the explicit per-GPU entries below instead, to avoid duplicate choices.
                 Dim groups = hardware.Gpus.
                     Where(Function(g) g IsNot Nothing AndAlso Not g.IsSharedMemory AndAlso Math.Max(0, g.EffectiveVramBytes) > 0).
                     GroupBy(Function(g) VramEstimator.MultiGpuCompatibilityKey(g), StringComparer.OrdinalIgnoreCase).
+                    Where(Function(group) group.Count() >= 2).
                     Select(Function(group) New With {.Key = group.Key, .Gpus = group.ToList()}).
                     OrderByDescending(Function(group) group.Gpus.Sum(Function(g) Math.Max(0, g.EffectiveVramBytes))).
                     ThenByDescending(Function(group) group.Gpus.Count).
@@ -763,8 +767,18 @@ Namespace ViewModels
 
                 For Each group In groups
                     options.Add(New ComboOption With {
-                        .Label = BuildGpuGroupLabel(group.Gpus),
+                        .Label = L("まとめて使う: ", "Combined: ") & BuildGpuGroupLabel(group.Gpus),
                         .Value = group.Key
+                    })
+                Next
+
+                ' Explicit single-GPU targets: estimate as if only this one device is used.
+                For i = 0 To hardware.Gpus.Count - 1
+                    Dim gpu = hardware.Gpus(i)
+                    If gpu Is Nothing Then Continue For
+                    options.Add(New ComboOption With {
+                        .Label = L($"GPU{i} のみ: ", $"GPU{i} only: ") & gpu.Name & $" ({Formatters.FormatBytes(gpu.VramBytes)})",
+                        .Value = "gpu:" & i.ToString(CultureInfo.InvariantCulture)
                     })
                 Next
             End If

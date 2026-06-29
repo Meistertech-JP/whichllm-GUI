@@ -44,6 +44,7 @@ Namespace Services
 
         Public Async Function RankAsync(options As RankingOptions, Optional cancellationToken As CancellationToken = Nothing) As Task(Of RankingResult)
             Dim hardware = Await _hardwareDetector.DetectAsync(options, cancellationToken)
+            hardware = ApplyTargetGpuSelection(hardware, options)
             Dim models = Await _modelFetcher.LoadModelsAsync(options, cancellationToken)
             Dim benchmarks = Await _benchmarkProvider.LoadBenchmarksAsync(options.Refresh, cancellationToken)
             Return Await _ranker.RankAsync(models, hardware, benchmarks, options, cancellationToken)
@@ -51,6 +52,26 @@ Namespace Services
 
         Public Function DetectHardwareAsync(options As RankingOptions, Optional cancellationToken As CancellationToken = Nothing) As Task(Of HardwareInfo)
             Return _hardwareDetector.DetectAsync(options, cancellationToken)
+        End Function
+
+        ' When the user pins estimation to a single detected GPU (group key "gpu:&lt;index&gt;"),
+        ' reduce the hardware to that one device so both the VRAM-fit and the speed estimate
+        ' target it. Group keys ("auto" / "&lt;vendor&gt;:&lt;arch&gt;") are left untouched for the
+        ' VRAM estimator's multi-GPU group logic.
+        Friend Shared Function ApplyTargetGpuSelection(hardware As HardwareInfo, options As RankingOptions) As HardwareInfo
+            If hardware Is Nothing OrElse options Is Nothing Then Return hardware
+            Dim key = If(options.GpuGroupKey, "")
+            If Not key.StartsWith("gpu:", StringComparison.OrdinalIgnoreCase) Then Return hardware
+
+            Dim index As Integer
+            If Not Integer.TryParse(key.Substring(4), index) Then Return hardware
+            If index < 0 OrElse index >= hardware.Gpus.Count Then Return hardware
+
+            Dim reduced = hardware.Clone()
+            Dim chosen = reduced.Gpus(index)
+            reduced.Gpus = New List(Of GpuInfo) From {chosen}
+            chosen.Notes.Add("Estimation pinned to the selected GPU.")
+            Return reduced
         End Function
 
         Public Async Function LoadModelSuggestionsAsync(options As RankingOptions, Optional cancellationToken As CancellationToken = Nothing) As Task(Of IReadOnlyList(Of ModelInfo))

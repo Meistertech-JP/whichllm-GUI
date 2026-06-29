@@ -489,6 +489,54 @@ Namespace WhichLlm.Tests
             Assert.IsTrue(moeSpeed > denseSpeed * 3.0R, $"MoE active-param speed not applied: moe={moeSpeed}, dense={denseSpeed}")
         End Sub
 
+        <TestMethod>
+        Public Sub TargetGpuSelectionPinsEstimationToChosenDevice()
+            Dim hardware = HardwareWithTwoGpus(32, 8)
+            Dim pinned = WhichLlmApplicationService.ApplyTargetGpuSelection(hardware, New RankingOptions With {.GpuGroupKey = "gpu:1"})
+
+            Assert.AreEqual(1, pinned.Gpus.Count)
+            Assert.AreEqual("Small", pinned.Gpus(0).Name)
+            Assert.AreEqual(2, hardware.Gpus.Count) ' original is cloned, not mutated
+        End Sub
+
+        <TestMethod>
+        Public Sub TargetGpuSelectionLeavesGroupAndAutoKeysUntouched()
+            Dim hardware = HardwareWithTwoGpus(32, 8)
+            Assert.AreEqual(2, WhichLlmApplicationService.ApplyTargetGpuSelection(hardware, New RankingOptions With {.GpuGroupKey = "auto"}).Gpus.Count)
+            Assert.AreEqual(2, WhichLlmApplicationService.ApplyTargetGpuSelection(hardware, New RankingOptions With {.GpuGroupKey = "nvidia:cuda"}).Gpus.Count)
+            Assert.AreEqual(2, WhichLlmApplicationService.ApplyTargetGpuSelection(hardware, New RankingOptions With {.GpuGroupKey = "gpu:9"}).Gpus.Count)
+        End Sub
+
+        <TestMethod>
+        Public Async Function RankingHonorsTargetGpuSelectionThroughRankAsync() As Task
+            Dim models = New List(Of ModelInfo) From {TestModel("test/Big-30B", 30, "chat")}
+            Dim service = New WhichLlmApplicationService(
+                New FakeHardwareDetector(HardwareWithTwoGpus(32, 8)),
+                New FakeModelFetcher(models), New FakeBenchmarkProvider(), BuildRanker(),
+                New VramEstimator(), New GpuCatalog(), New SnippetGenerator())
+
+            Dim onBig = Await service.RankAsync(New RankingOptions With {.Top = 5, .UseCase = "general", .Profile = "general", .Evidence = "any", .GpuGroupKey = "gpu:0"})
+            Dim onSmall = Await service.RankAsync(New RankingOptions With {.Top = 5, .UseCase = "general", .Profile = "general", .Evidence = "any", .GpuGroupKey = "gpu:1"})
+
+            ' The 30B model fits fully on the big GPU but must spill when pinned to the small one.
+            Assert.AreEqual("full_gpu", onBig.Models(0).FitType)
+            Assert.AreNotEqual("full_gpu", onSmall.Models(0).FitType)
+        End Function
+
+        Private Shared Function HardwareWithTwoGpus(bigGb As Double, smallGb As Double) As HardwareInfo
+            Return New HardwareInfo With {
+                .CpuName = "Test CPU", .PhysicalCores = 8, .SupportsAvx2 = True,
+                .TotalRamBytes = 64L * 1024 * 1024 * 1024,
+                .AvailableRamBytes = 48L * 1024 * 1024 * 1024,
+                .RamBudgetBytes = 48L * 1024 * 1024 * 1024,
+                .FreeDiskBytes = 500L * 1024 * 1024 * 1024,
+                .Gpus = New List(Of GpuInfo) From {
+                    New GpuInfo With {.Name = "Big", .Vendor = "NVIDIA", .VramBytes = CLng(bigGb * 1024 * 1024 * 1024), .UsableVramBytes = CLng(bigGb * 1024 * 1024 * 1024), .MemoryBandwidthGbps = 1008},
+                    New GpuInfo With {.Name = "Small", .Vendor = "NVIDIA", .VramBytes = CLng(smallGb * 1024 * 1024 * 1024), .UsableVramBytes = CLng(smallGb * 1024 * 1024 * 1024), .MemoryBandwidthGbps = 360}
+                }
+            }
+        End Function
+
 
         <TestMethod>
         Public Async Function HuggingFaceClientFetchesRecentlyUpdatedAndTrendingModels() As Task
