@@ -106,7 +106,7 @@ So the flow is: decide *what* to run in whichllm GUI, then actually run it with 
   If auto-detection fails, you can type VRAM and bandwidth manually on the `This PC` screen and estimate from there.
   GPU detection is tried in this order: `nvidia-smi` (NVIDIA) → `hipInfo.exe` (AMD) → `xpu-smi` (Intel) → Windows WMI/registry.
 - **You have multiple GPUs**
-  All detected GPUs are shown, and you can choose the "GPU group" used to split a single model. Mixed-generation or mixed-architecture GPUs are **not** treated as simple combined VRAM and judged "runnable."
+  All detected GPUs are shown, and the `Target GPU / group` selector on `Recommend` lets you choose what to estimate for: a whole same-generation group, a single specific card, or just some of N identical cards (e.g. 2 of 3, when you have 3+). Fit and speed are estimated for the configuration you pick. Mixed-generation or mixed-architecture GPUs are **not** treated as simple combined VRAM and judged "runnable."
 - **No internet / first launch**
   When neither live fetch nor cache is available, a minimal set of common small-to-mid models is shown so the screen is never empty.
 - **Change language / clear cache**
