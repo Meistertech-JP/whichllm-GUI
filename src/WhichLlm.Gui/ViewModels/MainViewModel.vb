@@ -772,6 +772,25 @@ Namespace ViewModels
                     })
                 Next
 
+                ' Partial counts of an identical GPU set (e.g. use 2 of 3 identical cards).
+                ' k ranges 2..N-1; N is the full "Combined" group above and 1 is "only" below.
+                Dim identicalSets = hardware.Gpus.
+                    Select(Function(g, i) New With {.Gpu = g, .Index = i}).
+                    Where(Function(x) x.Gpu IsNot Nothing AndAlso Not x.Gpu.IsSharedMemory AndAlso Math.Max(0, x.Gpu.EffectiveVramBytes) > 0).
+                    GroupBy(Function(x) (x.Gpu.Name, x.Gpu.EffectiveVramBytes)).
+                    Where(Function(grp) grp.Count() >= 3).
+                    ToList()
+                For Each grp In identicalSets
+                    Dim ordered = grp.OrderBy(Function(x) x.Index).ToList()
+                    For k = 2 To ordered.Count - 1
+                        Dim idxs = ordered.Take(k).Select(Function(x) x.Index.ToString(CultureInfo.InvariantCulture)).ToList()
+                        options.Add(New ComboOption With {
+                            .Label = L($"{ordered(0).Gpu.Name} ×{k}台（合算）", $"{ordered(0).Gpu.Name} ×{k} (combined)"),
+                            .Value = "gpu:" & String.Join(",", idxs)
+                        })
+                    Next
+                Next
+
                 ' Explicit single-GPU targets: estimate as if only this one device is used.
                 For i = 0 To hardware.Gpus.Count - 1
                     Dim gpu = hardware.Gpus(i)

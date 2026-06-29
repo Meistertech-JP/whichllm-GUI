@@ -523,6 +523,48 @@ Namespace WhichLlm.Tests
             Assert.AreNotEqual("full_gpu", onSmall.Models(0).FitType)
         End Function
 
+        <TestMethod>
+        Public Sub TargetGpuSelectionSupportsMultipleExplicitGpus()
+            Dim hardware = HardwareWithIdenticalGpus(3, 12)
+            Dim pinned = WhichLlmApplicationService.ApplyTargetGpuSelection(hardware, New RankingOptions With {.GpuGroupKey = "gpu:0,2"})
+
+            Assert.AreEqual(2, pinned.Gpus.Count)
+            Assert.AreEqual(3, hardware.Gpus.Count) ' original untouched
+        End Sub
+
+        <TestMethod>
+        Public Async Function RankingCombinesExplicitlySelectedIdenticalGpus() As Task
+            ' 3x 12GB identical cards; a 30B model spills on one card but fits when two are
+            ' explicitly combined (use 2 of 3).
+            Dim models = New List(Of ModelInfo) From {TestModel("test/Big-30B", 30, "chat")}
+            Dim service = New WhichLlmApplicationService(
+                New FakeHardwareDetector(HardwareWithIdenticalGpus(3, 12)),
+                New FakeModelFetcher(models), New FakeBenchmarkProvider(), BuildRanker(),
+                New VramEstimator(), New GpuCatalog(), New SnippetGenerator())
+
+            Dim oneCard = Await service.RankAsync(New RankingOptions With {.Top = 5, .UseCase = "general", .Profile = "general", .Evidence = "any", .GpuGroupKey = "gpu:0"})
+            Dim twoCards = Await service.RankAsync(New RankingOptions With {.Top = 5, .UseCase = "general", .Profile = "general", .Evidence = "any", .GpuGroupKey = "gpu:0,1"})
+
+            Assert.AreNotEqual("full_gpu", oneCard.Models(0).FitType)
+            Assert.AreEqual("full_gpu", twoCards.Models(0).FitType)
+            Assert.IsTrue(twoCards.Models(0).UsesMultiGpu)
+        End Function
+
+        Private Shared Function HardwareWithIdenticalGpus(count As Integer, gb As Double) As HardwareInfo
+            Dim gpus As New List(Of GpuInfo)
+            For i = 1 To count
+                gpus.Add(New GpuInfo With {.Name = "RTX TEST", .Vendor = "NVIDIA", .VramBytes = CLng(gb * 1024 * 1024 * 1024), .UsableVramBytes = CLng(gb * 1024 * 1024 * 1024), .MemoryBandwidthGbps = 800})
+            Next
+            Return New HardwareInfo With {
+                .CpuName = "Test CPU", .PhysicalCores = 8, .SupportsAvx2 = True,
+                .TotalRamBytes = 64L * 1024 * 1024 * 1024,
+                .AvailableRamBytes = 48L * 1024 * 1024 * 1024,
+                .RamBudgetBytes = 48L * 1024 * 1024 * 1024,
+                .FreeDiskBytes = 500L * 1024 * 1024 * 1024,
+                .Gpus = gpus
+            }
+        End Function
+
         Private Shared Function HardwareWithTwoGpus(bigGb As Double, smallGb As Double) As HardwareInfo
             Return New HardwareInfo With {
                 .CpuName = "Test CPU", .PhysicalCores = 8, .SupportsAvx2 = True,

@@ -63,14 +63,24 @@ Namespace Services
             Dim key = If(options.GpuGroupKey, "")
             If Not key.StartsWith("gpu:", StringComparison.OrdinalIgnoreCase) Then Return hardware
 
-            Dim index As Integer
-            If Not Integer.TryParse(key.Substring(4), index) Then Return hardware
-            If index < 0 OrElse index >= hardware.Gpus.Count Then Return hardware
+            ' "gpu:&lt;i&gt;" pins to one device; "gpu:&lt;i&gt;,&lt;j&gt;,..." pins to an explicit subset
+            ' (e.g. 2 of 3 identical cards). The chosen devices then flow through the VRAM
+            ' estimator's multi-GPU combine logic just like an auto-selected group.
+            Dim indices As New List(Of Integer)
+            For Each token In key.Substring(4).Split(","c)
+                Dim index As Integer
+                If Integer.TryParse(token.Trim(), index) AndAlso index >= 0 AndAlso index < hardware.Gpus.Count AndAlso Not indices.Contains(index) Then
+                    indices.Add(index)
+                End If
+            Next
+            If indices.Count = 0 Then Return hardware
 
             Dim reduced = hardware.Clone()
-            Dim chosen = reduced.Gpus(index)
-            reduced.Gpus = New List(Of GpuInfo) From {chosen}
-            chosen.Notes.Add("Estimation pinned to the selected GPU.")
+            Dim chosen = indices.OrderBy(Function(i) i).Select(Function(i) reduced.Gpus(i)).ToList()
+            reduced.Gpus = chosen
+            For Each gpu In chosen
+                gpu.Notes.Add("Estimation pinned to the selected GPU(s).")
+            Next
             Return reduced
         End Function
 

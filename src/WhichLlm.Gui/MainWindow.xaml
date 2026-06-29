@@ -227,7 +227,7 @@
                                     <ComboBox IsEditable="True" IsTextSearchEnabled="False" StaysOpenOnEdit="True" ItemsSource="{Binding GpuOptions}" Text="{Binding SimulatedGpuText, UpdateSourceTrigger=PropertyChanged}" SelectionChanged="EditableSuggestionComboBox_SelectionChanged" Width="240"/>
                                 </StackPanel>
                                 <StackPanel>
-                                    <TextBlock Text="対象GPU / グループ" Style="{StaticResource FieldLabel}" ToolTip="複数GPU環境で、見積もりの対象を選びます。「まとめて使う」は同世代GPUを合算した分割、「GPU○ のみ」は特定の1台だけを対象に見積もります。混在世代のGPUは自動合算しません。"/>
+                                    <TextBlock Text="対象GPU / グループ" Style="{StaticResource FieldLabel}" ToolTip="複数GPU環境で、見積もりの対象を選びます。「まとめて使う」は同世代GPUを全合算、「×k台（合算）」は同一GPUのうちk台だけを合算（例: 3台中2台）、「GPU○ のみ」は特定の1台だけを対象にします。混在世代のGPUは自動合算しません。"/>
                                     <ComboBox ItemsSource="{Binding GpuGroupOptions}" DisplayMemberPath="Label" SelectedItem="{Binding SelectedGpuGroupOption, Mode=TwoWay}" Width="300"/>
                                 </StackPanel>
                                 <CheckBox Content="CPUのみ" IsChecked="{Binding CpuOnly}" ToolTip="GPUを使わない前提で候補を探します。"/>
